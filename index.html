@@ -2,35 +2,19 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Olympic Figure Skating Program</title>
+<title>Figure Skating Program</title>
 
 <style>
-body{margin:0;overflow:hidden;font-family:Arial;background:black;}
+body{margin:0;overflow:hidden;background:#111;font-family:Arial;}
 
-#rink{
-position:absolute;width:100%;height:100%;
-background:url("https://images.unsplash.com/photo-1518546305927-5a555bb7020d?q=80&w=2070&auto=format&fit=crop");
-background-size:cover;background-position:center;
-}
-
-#skater{
-position:absolute;bottom:130px;left:50%;
-width:130px;transition:transform .3s;
-}
-
-#scoreBoard{
-position:absolute;top:20px;left:20px;color:white;
-font-size:22px;text-shadow:0 0 8px black;
-}
-
-#info{
-position:absolute;bottom:20px;left:20px;color:white;
-}
+canvas{display:block}
 
 #questionBox{
-position:absolute;top:50%;left:50%;
+position:absolute;
+top:50%;left:50%;
 transform:translate(-50%,-50%);
-background:white;padding:25px;border-radius:12px;
+background:white;
+padding:25px;border-radius:12px;
 width:420px;display:none;
 }
 
@@ -41,18 +25,12 @@ position:absolute;top:50%;left:50%;
 transform:translate(-50%,-50%);
 color:white;text-align:center;
 }
-
-.medal{font-size:120px;}
 </style>
 </head>
 
 <body>
 
-<div id="rink"></div>
-<img id="skater" src="https://pngimg.com/d/figure_skating_PNG36.png">
-
-<div id="scoreBoard">TES: 0 | PCS: 0 | Falls: 0</div>
-<div id="info">← → Move | Space = Jump when prompted</div>
+<canvas id="game"></canvas>
 
 <div id="questionBox">
 <h3 id="questionText"></h3>
@@ -60,157 +38,192 @@ color:white;text-align:center;
 </div>
 
 <div id="startScreen" class="screen">
-<h1>Olympic Figure Skating Program</h1>
-<p>Answer questions to land jumps.<br>
-Keyboard skating controls enabled.</p>
-<button onclick="startProgram()">Start Program</button>
+<h1>Figure Skating Program</h1>
+<p>Answer questions to land jumps.</p>
+<button onclick="startProgram()">Start</button>
 </div>
-
-<div id="endScreen" class="screen" style="display:none;">
-<h1>Final Result</h1>
-<div id="medal"></div>
-<h2 id="finalScore"></h2>
-<button onclick="location.reload()">Skate Again</button>
-</div>
-
-<!-- MUSIC -->
-<audio id="programMusic" loop>
-<source src="https://cdn.pixabay.com/download/audio/2022/10/25/audio_946ad0c2c6.mp3">
-</audio>
-
-<audio id="cheer">
-<source src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_12b0c7443c.mp3">
-</audio>
-
-<audio id="gasp">
-<source src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_30c7d9f9aa.mp3">
-</audio>
-
-<audio id="medalMusic">
-<source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_0f02a8b3e7.mp3">
-</audio>
 
 <script>
 
-/* ---------- PROGRAM ELEMENTS ---------- */
+/* ---------- CANVAS ---------- */
 
-const elements=[
-"Axel","Salchow","Toe Loop","Loop","Lutz",
-"Axel","Salchow","Toe Loop","Loop","Lutz"
-];
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-/* Base values like real skating */
-const baseValue={
-"Axel":8,"Lutz":6,"Salchow":5,"Toe Loop":4,"Loop":5
+function resize(){
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+}
+resize();
+window.addEventListener("resize",resize);
+
+/* ---------- EMPTY RINK BACKGROUND ---------- */
+
+function drawRink(){
+ctx.fillStyle="#e8f4ff";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+// boards
+ctx.fillStyle="#fff";
+ctx.fillRect(0,canvas.height-120,canvas.width,120);
+
+// red center line
+ctx.strokeStyle="red";
+ctx.lineWidth=4;
+ctx.beginPath();
+ctx.moveTo(canvas.width/2,0);
+ctx.lineTo(canvas.width/2,canvas.height);
+ctx.stroke();
+
+// faint skate scratches
+ctx.strokeStyle="rgba(180,180,180,.3)";
+for(let i=0;i<15;i++){
+ctx.beginPath();
+ctx.moveTo(Math.random()*canvas.width,Math.random()*canvas.height);
+ctx.lineTo(Math.random()*canvas.width,Math.random()*canvas.height);
+ctx.stroke();
+}
+}
+
+/* ---------- DRAW SKATER ---------- */
+
+let skater={
+x:canvas.width/2,
+y:canvas.height-150,
+rotation:0,
+legLift:false,
+fallen:false
 };
 
-/* rotations */
-const rotations={
-"Axel":900,"Lutz":720,"Salchow":540,"Toe Loop":360,"Loop":540
-};
+function drawSkater(){
 
-/* ---------- EMPIRICAL RULE QUESTIONS ---------- */
+ctx.save();
+ctx.translate(skater.x,skater.y);
+ctx.rotate(skater.rotation*Math.PI/180);
+
+// fall state
+if(skater.fallen){
+ctx.rotate(Math.PI/2);
+}
+
+// dress
+ctx.fillStyle="#d81b60";
+ctx.beginPath();
+ctx.moveTo(0,0);
+ctx.lineTo(-20,50);
+ctx.lineTo(20,50);
+ctx.fill();
+
+// body
+ctx.fillStyle="#fdd";
+ctx.fillRect(-6,-40,12,40);
+
+// head
+ctx.beginPath();
+ctx.arc(0,-55,10,0,Math.PI*2);
+ctx.fill();
+
+// arms
+ctx.strokeStyle="#fdd";
+ctx.lineWidth=4;
+ctx.beginPath();
+ctx.moveTo(0,-30);
+ctx.lineTo(-25,-10);
+ctx.moveTo(0,-30);
+ctx.lineTo(25,-10);
+ctx.stroke();
+
+// legs
+ctx.strokeStyle="black";
+ctx.lineWidth=5;
+ctx.beginPath();
+
+// skating leg
+ctx.moveTo(0,50);
+ctx.lineTo(0,80);
+
+// landing leg lift
+if(skater.legLift){
+ctx.moveTo(0,50);
+ctx.lineTo(25,80);
+}
+
+ctx.stroke();
+
+// skate blade
+ctx.fillRect(-10,80,20,4);
+
+ctx.restore();
+}
+
+/* ---------- PROGRAM ---------- */
+
+const elements=["Axel","Salchow","Toe Loop","Loop","Lutz",
+"Axel","Salchow","Toe Loop","Loop","Lutz"];
 
 const questions=[
 {q:"Percent within 1 SD?",choices:["68%","95%","99.7%","50%"],correct:0},
 {q:"Percent within 2 SD?",choices:["68%","95%","75%","50%"],correct:1},
 {q:"Percent within 3 SD?",choices:["90%","95%","99.7%","80%"],correct:2},
-{q:"Mean=100 SD=10 → 68% range?",choices:["90–110","80–120","70–130","95–105"],correct:0},
-{q:"Mean=50 SD=5 → 95% range?",choices:["45–55","40–60","35–65","48–52"],correct:1},
-{q:"Empirical rule distribution?",choices:["Uniform","Normal","Skewed","Random"],correct:1},
+{q:"Mean=100 SD=10 → 68%?",choices:["90–110","80–120","70–130","95–105"],correct:0},
+{q:"Mean=50 SD=5 → 95%?",choices:["45–55","40–60","35–65","48–52"],correct:1},
+{q:"Empirical rule applies to?",choices:["Uniform","Normal","Skewed","Random"],correct:1},
 {q:"Beyond 3 SD?",choices:["0.3%","32%","5%","10%"],correct:0},
 {q:"Mean=70 SD=5 → 99.7%?",choices:["65–75","60–80","55–85","50–90"],correct:2},
 {q:"Between 1–2 SD one side?",choices:["13.5%","34%","47.5%","2.5%"],correct:0},
 {q:"Within 2 SD but outside 1 SD?",choices:["27%","13.5%","68%","95%"],correct:0}
 ];
 
-/* ---------- STATE ---------- */
-
 let current=0;
-let TES=0; // technical
-let PCS=20; // program components start
-let falls=0;
-
-const skater=document.getElementById("skater");
-let x=50;
 let jumping=false;
-
-/* ---------- KEYBOARD SKATING ---------- */
-
-document.addEventListener("keydown",e=>{
-if(jumping) return;
-
-if(e.key==="ArrowLeft"){x-=2;}
-if(e.key==="ArrowRight"){x+=2;}
-if(e.key===" " && readyForJump){performJump();}
-
-x=Math.max(5,Math.min(90,x));
-skater.style.left=x+"%";
-});
 
 /* ---------- START ---------- */
 
 function startProgram(){
 document.getElementById("startScreen").style.display="none";
-document.getElementById("programMusic").play();
-nextElement();
+nextJump();
 }
 
-/* ---------- EDGE TAKEOFF SETUP ---------- */
+/* ---------- JUMP MOTION ---------- */
 
-let readyForJump=false;
+function nextJump(){
+if(current>=10)return;
 
-function nextElement(){
-if(current>=10){finalSpin();return;}
-
-readyForJump=true;
-document.getElementById("info").innerText=
-elements[current]+" ready — press SPACE to jump";
+performJump();
 }
 
-/* ---------- REALISTIC JUMP ---------- */
-
+/* realistic jump → pause in air */
 function performJump(){
 
-readyForJump=false;
 jumping=true;
+skater.legLift=false;
+skater.fallen=false;
 
-let type=elements[current];
-let rotation=rotations[type];
-let height=220;
+let startY=canvas.height-150;
+let peak=startY-200;
+let duration=800;
+let start=null;
 
-let startX=x;
-let landingX=x+10*(Math.random()-.5); // slight randomness
+function up(time){
+if(!start)start=time;
+let p=(time-start)/duration;
 
-// edge direction differences
-if(type==="Lutz") landingX=x-8;
-if(type==="Axel") landingX=x+12;
-
-let duration=1200;
-let startTime=null;
-
-function animate(time){
-if(!startTime) startTime=time;
-let p=(time-startTime)/duration;
-
-if(p<=1){
-let y=4*height*p*(1-p);
-let r=rotation*p;
-
-skater.style.transform=
-`translateY(-${y}px) rotate(${r}deg)`;
-
-x=startX+(landingX-startX)*p;
-skater.style.left=x+"%";
-
-requestAnimationFrame(animate);
+if(p<1){
+skater.y=startY-(startY-peak)*p;
+skater.rotation=720*p; // spin
+requestAnimationFrame(up);
+}else{
+skater.y=peak;
+pauseInAir();
 }
-else{
-skater.style.transform="translateY(0) rotate(0)";
+}
+requestAnimationFrame(up);
+}
+
+/* ---------- AIR PAUSE ---------- */
+
+function pauseInAir(){
 showQuestion();
-}
-}
-requestAnimationFrame(animate);
 }
 
 /* ---------- QUESTIONS ---------- */
@@ -225,17 +238,16 @@ let c=document.getElementById("choices");
 c.innerHTML="";
 
 q.choices.forEach((choice,i)=>{
-let btn=document.createElement("button");
-btn.innerText=choice;
-btn.onclick=()=>answer(i);
-c.appendChild(btn);
+let b=document.createElement("button");
+b.innerText=choice;
+b.onclick=()=>answer(i);
+c.appendChild(b);
 });
 
 document.getElementById("questionBox").style.display="block";
 }
 
 function answer(choice){
-
 document.getElementById("questionBox").style.display="none";
 
 if(choice===questions[current].correct){
@@ -245,101 +257,69 @@ fall();
 }
 
 current++;
-updateScore();
-setTimeout(nextElement,1500);
+setTimeout(nextJump,2000);
 }
 
-/* ---------- LANDING / GOE ---------- */
+/* ---------- LAND CLEAN ---------- */
 
 function landClean(){
-document.getElementById("cheer").play();
 
-let quality=1+Math.random()*2; // GOE
-TES+=baseValue[elements[current]]+quality;
-PCS+=0.5;
+let ground=canvas.height-150;
+let start=skater.y;
+let duration=500;
+let t0=null;
 
-skater.style.transform="rotate(0deg) scale(1.05)";
-setTimeout(()=>skater.style.transform="none",400);
+function down(t){
+if(!t0)t0=t;
+let p=(t-t0)/duration;
+
+if(p<1){
+skater.y=start+(ground-start)*p;
+skater.rotation=0;
+requestAnimationFrame(down);
+}else{
+skater.y=ground;
+skater.legLift=true; // one-leg landing pose
 jumping=false;
+}
+}
+requestAnimationFrame(down);
 }
 
 /* ---------- FALL ---------- */
 
 function fall(){
-document.getElementById("gasp").play();
 
-falls++;
-TES+=baseValue[elements[current]]-3;
-PCS-=1;
+let ground=canvas.height-150;
+let start=skater.y;
+let duration=500;
+let t0=null;
 
-skater.style.transform="rotate(90deg) translateY(40px)";
-setTimeout(()=>{
-skater.style.transform="none";
+function down(t){
+if(!t0)t0=t;
+let p=(t-t0)/duration;
+
+if(p<1){
+skater.y=start+(ground-start)*p;
+skater.rotation=360*p;
+requestAnimationFrame(down);
+}else{
+skater.y=ground;
+skater.fallen=true;
 jumping=false;
-},900);
-}
-
-/* ---------- FINAL SPIN + POSE ---------- */
-
-function finalSpin(){
-
-document.getElementById("info").innerText="Final Spin...";
-
-let spins=0;
-let spinInterval=setInterval(()=>{
-skater.style.transform=`rotate(${spins}deg)`;
-spins+=30;
-if(spins>1080){
-clearInterval(spinInterval);
-finalPose();
-}
-},40);
-}
-
-function finalPose(){
-skater.style.transform="scale(1.2)";
-
-setTimeout(endProgram,1500);
-}
-
-/* ---------- SCORE ---------- */
-
-function updateScore(){
-document.getElementById("scoreBoard").innerText=
-`TES: ${TES.toFixed(1)} | PCS: ${PCS.toFixed(1)} | Falls: ${falls}`;
-}
-
-/* ---------- END ---------- */
-
-function endProgram(){
-
-document.getElementById("programMusic").pause();
-document.getElementById("medalMusic").play();
-
-document.getElementById("endScreen").style.display="block";
-
-let total=TES+PCS-falls;
-document.getElementById("finalScore").innerText=
-"Total Score: "+total.toFixed(1);
-
-let medal=document.getElementById("medal");
-
-/* medal based on correct answers like requested */
-let correct=10-falls;
-
-if(correct===10){
-medal.innerHTML='<div class="medal">🥇</div><h2>Gold Medal</h2>';
-}
-else if(correct===9){
-medal.innerHTML='<div class="medal">🥈</div><h2>Silver Medal</h2>';
-}
-else if(correct===8){
-medal.innerHTML='<div class="medal">🥉</div><h2>Bronze Medal</h2>';
-}
-else{
-medal.innerHTML='<h2>Try Again</h2>';
 }
 }
+requestAnimationFrame(down);
+}
+
+/* ---------- LOOP ---------- */
+
+function loop(){
+drawRink();
+drawSkater();
+requestAnimationFrame(loop);
+}
+loop();
 
 </script>
 </body>
