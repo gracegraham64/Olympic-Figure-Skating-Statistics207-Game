@@ -16,7 +16,7 @@ canvas{
   margin:auto;
   border:4px solid white;
 }
-#startScreen{
+#startScreen, #endingScreen{
   position:absolute;
   top:0; left:0;
   width:100%; height:100%;
@@ -26,8 +26,25 @@ canvas{
   flex-direction:column;
   background:rgba(0,0,40,0.9);
 }
+#questionContainer{
+  position:absolute;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  background:rgba(0,0,0,0.7);
+  padding:10px;
+  border-radius:10px;
+}
+button{
+  padding:12px 20px;
+  font-size:18px;
+  margin:5px;
+  cursor:pointer;
+}
 .big{font-size:60px;}
-button{padding:12px 20px;font-size:18px;margin-top:20px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -40,56 +57,63 @@ button{padding:12px 20px;font-size:18px;margin-top:20px; cursor:pointer;}
 
 <canvas id="game" width="900" height="500" style="display:none"></canvas>
 
+<div id="questionContainer">
+  <div id="questionText" style="margin-bottom:10px;font-size:20px;"></div>
+  <div id="answers"></div>
+</div>
+
+<div id="endingScreen">
+  <div id="resultText" class="big"></div>
+  <canvas id="medalCanvas" width="500" height="500"></canvas>
+  <div id="finalScore" style="margin-top:20px;font-size:24px;"></div>
+  <button onclick="location.reload()">Play Again</button>
+</div>
+
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const medalCanvas = document.getElementById("medalCanvas");
+const mctx = medalCanvas.getContext("2d");
 
-/* ---------- AUDIO ---------- */
+/* AUDIO */
 const programMusic = new Audio("https://cdn.pixabay.com/audio/2023/07/23/audio_1c3e4d8f1e.mp3");
-programMusic.loop = true;
-programMusic.volume = 0.5;
-
+programMusic.loop = true; programMusic.volume = 0.5;
 const cheer = new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
 const aww = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
+const medalMusic = new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
 
-/* ---------- QUESTIONS ---------- */
+/* QUESTIONS */
 const questions = [
-  {q:"Percent within 1 SD?",a:"68", options:["68","95","99.7","50"]},
-  {q:"Percent within 2 SD?",a:"95", options:["68","95","99.7","50"]},
-  {q:"Percent within 3 SD?",a:"99.7", options:["68","95","99.7","50"]},
-  {q:"Mean=100 SD=10 → 1 SD range?",a:"90-110", options:["80-120","90-110","85-115","100-110"]},
-  {q:"Mean=50 SD=5 → 2 SD range?",a:"40-60", options:["45-55","40-60","35-65","50-55"]},
-  {q:"Distribution for empirical rule?",a:"normal", options:["skewed","uniform","normal","bimodal"]},
-  {q:"Percent beyond 2 SD one side?",a:"2.5", options:["5","2.5","1","10"]},
-  {q:"Mean location in normal distribution?",a:"center", options:["left","right","center","random"]},
-  {q:"Percent beyond 3 SD total?",a:"0.3", options:["0.3","3","1","0"]},
-  {q:"Shape of normal distribution?",a:"bell", options:["bell","flat","triangle","uniform"]}
+{q:"Percent within 1 SD?",a:"68", options:["68","95","99.7","50"]},
+{q:"Percent within 2 SD?",a:"95", options:["68","95","99.7","50"]},
+{q:"Percent within 3 SD?",a:"99.7", options:["68","95","99.7","50"]},
+{q:"Mean=100 SD=10 → 1 SD range?",a:"90-110", options:["80-120","90-110","85-115","100-110"]},
+{q:"Mean=50 SD=5 → 2 SD range?",a:"40-60", options:["45-55","40-60","35-65","50-55"]},
+{q:"Distribution for empirical rule?",a:"normal", options:["skewed","uniform","normal","bimodal"]},
+{q:"Percent beyond 2 SD one side?",a:"2.5", options:["5","2.5","1","10"]},
+{q:"Mean location in normal distribution?",a:"center", options:["left","right","center","random"]},
+{q:"Percent beyond 3 SD total?",a:"0.3", options:["0.3","3","1","0"]},
+{q:"Shape of normal distribution?",a:"bell", options:["bell","flat","triangle","uniform"]}
 ];
 
-/* ---------- JUMPS ---------- */
-const jumps = [
-  "Single Axel","Double Lutz","Triple Salchow",
-  "Double Loop","Triple Flip","Double Toe",
-  "Triple Lutz","Single Loop","Double Axel","Triple Toe"
-];
+const jumps = ["Single Axel","Double Lutz","Triple Salchow","Double Loop","Triple Flip","Double Toe","Triple Lutz","Single Loop","Double Axel","Triple Toe"];
 
-/* ---------- GAME STATE ---------- */
 let score = 0, misses = 0;
 let index = 0;
-let skater = {x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,targetX:700};
+let skater = {x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,targetX:700,rotation:0};
 let sparkles=[], trails=[], confetti=[];
-let askingQuestion = false;
+let showingQuestion = false;
+let inAir = false; // whether skater is mid-jump
 
-/* ---------- ARENA ---------- */
+/* ---------- DRAW ---------- */
 function drawArena(){
-  let g=ctx.createLinearGradient(0,0,0,500);
+  let g = ctx.createLinearGradient(0,0,0,500);
   g.addColorStop(0,"#e8faff"); g.addColorStop(1,"#ffffff");
   ctx.fillStyle=g; ctx.fillRect(0,0,900,500);
   ctx.strokeStyle="#3aa0ff"; ctx.lineWidth=3;
   ctx.beginPath(); ctx.moveTo(0,250); ctx.lineTo(900,250); ctx.stroke();
   ctx.fillStyle="white"; ctx.fillRect(0,320,900,80);
   ctx.fillStyle="#ff0000"; ctx.fillRect(0,320,900,5);
-  // audience
   let cg=ctx.createLinearGradient(0,0,0,150); cg.addColorStop(0,"#222"); cg.addColorStop(1,"#555");
   ctx.fillStyle=cg; ctx.fillRect(0,0,900,150);
   for(let r=0;r<5;r++){
@@ -102,19 +126,22 @@ function drawArena(){
 
 /* ---------- SKATER ---------- */
 function drawSkater(){
-  ctx.save(); ctx.translate(skater.x,skater.y);
+  ctx.save();
+  ctx.translate(skater.x,skater.y);
+  ctx.rotate(skater.rotation); // rotation changes on wrong answer
   let stride = Math.sin(skater.frame/5)*8;
   ctx.strokeStyle="black"; ctx.lineWidth=4;
-  ctx.beginPath(); ctx.moveTo(-6,0); ctx.lineTo(-10,25);
+  ctx.beginPath();
+  ctx.moveTo(-6,0); ctx.lineTo(-10,25);
   ctx.moveTo(6,0); ctx.lineTo(10+stride,25); ctx.stroke();
   ctx.fillStyle="silver"; ctx.fillRect(-12,25,8,3); ctx.fillRect(6+stride,25,8,3);
   ctx.fillStyle=skater.costume; ctx.beginPath();
   ctx.moveTo(-12,-40); ctx.lineTo(12,-40); ctx.lineTo(8,0); ctx.lineTo(-8,0); ctx.fill();
   ctx.strokeStyle="black"; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(20*Math.sin(skater.frame/4),-10);
+  ctx.beginPath();
+  ctx.moveTo(0,-30); ctx.lineTo(20*Math.sin(skater.frame/4),-10);
   ctx.moveTo(0,-30); ctx.lineTo(-20*Math.sin(skater.frame/4),-10); ctx.stroke();
   ctx.fillStyle="#ffd6b0"; ctx.beginPath(); ctx.arc(0,-50,9,0,Math.PI*2); ctx.fill();
-  sparkles.push({x:skater.x+Math.random()*10-5,y:skater.y+20,life:15});
   ctx.restore();
 }
 
@@ -132,23 +159,80 @@ function triggerJump(){
   skater.vy = -12-Math.random()*3;
   skater.targetX = Math.random()*700+100;
   skater.direction = skater.targetX>skater.x?1:-1;
+  inAir = true;
 }
 
-/* ---------- MULTIPLE CHOICE ---------- */
-function askQuestion(){
-  if(askingQuestion) return;
-  askingQuestion = true;
+/* ---------- QUESTION BUTTONS ---------- */
+function showQuestion(){
+  if(showingQuestion) return;
+  showingQuestion = true;
+  const container = document.getElementById("questionContainer");
+  const qText = document.getElementById("questionText");
+  const answersDiv = document.getElementById("answers");
+  container.style.display = "flex";
+
   const q = questions[index];
-  let promptText = jumps[index % jumps.length] + "\n\n" + q.q + "\n";
-  q.options.forEach((opt,i)=>promptText+=(i+1)+". "+opt+"\n");
-  let ans = prompt(promptText);
-  if(ans){
-    let chosen = q.options[parseInt(ans)-1];
-    if(chosen && chosen.toLowerCase() === q.a.toLowerCase()){score+=10; cheer.play();}
-    else{misses++; aww.play();}
-  } else{misses++; aww.play();}
-  index = (index+1) % questions.length; // loop questions
-  askingQuestion = false;
+  qText.innerText = jumps[index] + ": " + q.q;
+  answersDiv.innerHTML = "";
+
+  // Freeze skater mid-air
+  skater.vy = 0;
+
+  q.options.forEach(opt=>{
+    const btn = document.createElement("button");
+    btn.innerText = opt;
+    btn.onclick = ()=>{
+      container.style.display="none";
+      showingQuestion=false;
+
+      if(opt.toLowerCase()===q.a.toLowerCase()){
+        score+=10;
+        cheer.play();
+        skater.rotation = 0; // land upright
+        skater.vy = 5; // land down
+      } else{
+        misses++;
+        aww.play();
+        skater.rotation = Math.PI/2; // fall on side
+        skater.vy = 5; // fall down
+      }
+
+      index++;
+      if(index>=10) setTimeout(endGame, 1000);
+    };
+    answersDiv.appendChild(btn);
+  });
+}
+
+/* ---------- END SCREEN ---------- */
+function endGame(){
+  canvas.style.display="none";
+  document.getElementById("endingScreen").style.display="flex";
+  programMusic.pause();
+  medalMusic.play();
+
+  let medal = "Gold";
+  if(misses==1) medal="Silver";
+  else if(misses==2) medal="Bronze";
+  else if(misses>=3) medal="Lost";
+
+  document.getElementById("resultText").innerText = medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
+  document.getElementById("finalScore").innerText = `Final Score: ${score} / 100\nMissed: ${misses} / 10`;
+
+  // Draw podium + skater
+  mctx.clearRect(0,0,500,500);
+  mctx.fillStyle="#888"; mctx.fillRect(150,350,80,50);
+  mctx.fillStyle=medal==="Gold"?"#ffd700":medal==="Silver"?"#c0c0c0":"#cd7f32";
+  mctx.fillRect(250,300,80,100);
+  mctx.fillStyle="#cd7f32"; mctx.fillRect(350,370,80,30);
+  mctx.fillStyle=skater.costume;
+  mctx.fillRect(250+40-12,300-40,24,40);
+  mctx.beginPath();
+  mctx.arc(250+40,300-60,30,0,Math.PI*2);
+  mctx.fillStyle=medal==="Gold"?"#ffd700":medal==="Silver"?"#c0c0c0":"#cd7f32";
+  mctx.fill();
+  mctx.fillStyle="black"; mctx.font="20px Arial"; mctx.textAlign="center";
+  mctx.fillText(medal,250+40,300-55);
 }
 
 /* ---------- GAME LOOP ---------- */
@@ -156,33 +240,33 @@ function update(){
   ctx.clearRect(0,0,900,500);
   drawArena();
 
-  // Skater movement
-  skater.x += 2*skater.direction;
-  skater.frame++;
-  if(skater.x < 50) skater.direction = 1;
-  if(skater.x > 850) skater.direction = -1;
+  if(!showingQuestion){
+    skater.x += 2*skater.direction;
+    if(skater.x < 50) skater.direction = 1;
+    if(skater.x > 850) skater.direction = -1;
+  }
 
-  // Jumping
-  if(Math.abs(skater.x-skater.targetX)<5 && !askingQuestion) triggerJump();
+  if(inAir && !showingQuestion && Math.abs(skater.x-skater.targetX)<5) triggerJump();
   if(skater.vy !== 0){
-    skater.y += skater.vy; skater.vy += 0.5;
-    if(skater.y >= 350){skater.y=350; skater.vy=0; askQuestion();}
+    skater.y += skater.vy;
+    if(skater.y >= 350){skater.y=350; skater.vy=0; inAir=false; showQuestion();}
   }
 
   drawSkater();
   drawParticles();
-
   ctx.fillStyle="black"; ctx.fillText("Score: "+score,20,20);
   ctx.fillText("Missed: "+misses,20,40);
 
-  requestAnimationFrame(update);
+  if(index<10) requestAnimationFrame(update);
 }
 
-/* ---------- START ---------- */
+/* START */
 document.getElementById("startButton").addEventListener("click", ()=>{
   document.getElementById("startScreen").style.display="none";
   canvas.style.display="block";
+  document.getElementById("questionContainer").style.display="flex";
   programMusic.play();
+  triggerJump();
   update();
 });
 </script>
