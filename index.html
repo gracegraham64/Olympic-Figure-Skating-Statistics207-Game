@@ -1,97 +1,126 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Figure Skating Quiz</title>
+<meta charset="UTF-8">
+<title>Olympic Figure Skating Program</title>
 
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  font-family: Arial, sans-serif;
+body{
+margin:0;
+overflow:hidden;
+background:black;
+font-family:Arial;
 }
 
-/* Rink background */
-#rink {
-  width: 100vw;
-  height: 100vh;
-  background-image: url("https://upload.wikimedia.org/wikipedia/commons/3/3e/Ice_skating_rink.jpg");
-  background-size: cover;
-  background-position: center;
-  position: relative;
+/* rink canvas */
+#rink{
+position:absolute;
+width:100vw;
+height:100vh;
 }
 
-/* Skater image */
-#skater {
-  position: absolute;
-  bottom: 60px;
-  left: 45%;
-  width: 120px;
-  transition: all 1.2s ease;
+/* realistic skater */
+#skater{
+position:absolute;
+bottom:120px;
+left:50%;
+transform:translateX(-50%);
+width:90px;
+height:200px;
+transition:all 1.2s ease;
 }
 
-/* Jump up */
-.jump {
-  transform: translateY(-260px);
+/* jump */
+.jump{ transform:translate(-50%,-260px); }
+
+/* land */
+.land{ transform:translate(-50%,0); }
+
+/* fall */
+.fall{
+transform:translate(-50%,0) rotate(90deg);
+transform-origin:bottom center;
 }
 
-/* Clean landing */
-.land {
-  transform: translateY(0);
+/* question box */
+#questionBox{
+position:absolute;
+top:20px;
+left:50%;
+transform:translateX(-50%);
+background:white;
+padding:20px;
+border-radius:12px;
+display:none;
+text-align:center;
 }
 
-/* Fall animation */
-.fall {
-  transform: translateY(0) rotate(90deg);
+/* start button */
+#start{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:30px;
+padding:20px 40px;
 }
 
-#questionBox {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255,255,255,0.9);
-  padding: 20px;
-  border-radius: 10px;
-  display: none;
-  text-align: center;
-}
-
-button {
-  padding: 10px 15px;
-  margin: 5px;
-  font-size: 16px;
-}
-
-#endScreen {
-  position: absolute;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 40px;
-  display: none;
+/* end screen */
+#endScreen{
+position:absolute;
+top:40%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:50px;
+color:white;
+display:none;
 }
 </style>
 </head>
 
 <body>
 
-<div id="rink">
+<canvas id="rink"></canvas>
 
-  <!-- Realistic skater image (replace if you want) -->
-  <img id="skater"
-  src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Figure_skater_silhouette.png">
+<button id="start" onclick="startGame()">Start Program</button>
 
-  <div id="questionBox">
-    <div id="question"></div>
-    <button onclick="answer(true)">Correct Answer</button>
-    <button onclick="answer(false)">Wrong Answer</button>
-  </div>
+<!-- realistic human skater silhouette -->
+<div id="skater">
+<svg viewBox="0 0 120 260">
 
-  <div id="endScreen"></div>
+<!-- head -->
+<circle cx="60" cy="25" r="14" fill="#111"/>
 
+<!-- torso -->
+<path d="M50 40 Q60 80 55 130 Q65 130 70 40 Z" fill="#111"/>
+
+<!-- skating dress -->
+<path d="M45 90 Q60 120 75 90 L85 140 Q60 155 35 140 Z" fill="#111"/>
+
+<!-- arms -->
+<path d="M50 60 Q20 85 30 95 Q55 80 55 70 Z" fill="#111"/>
+<path d="M70 60 Q100 85 90 95 Q65 80 65 70 Z" fill="#111"/>
+
+<!-- legs -->
+<path d="M55 130 Q45 200 50 240 L60 240 Q65 200 65 130 Z" fill="#111"/>
+<path d="M65 130 Q80 200 85 240 L75 240 Q70 200 60 130 Z" fill="#111"/>
+
+<!-- skate blade -->
+<rect x="45" y="240" width="50" height="4" fill="#ddd"/>
+
+</svg>
 </div>
 
-<!-- Sounds -->
+<div id="questionBox">
+<div id="question"></div>
+<br>
+<button onclick="answer(true)">Correct</button>
+<button onclick="answer(false)">Wrong</button>
+</div>
+
+<div id="endScreen"></div>
+
+<!-- sounds -->
 <audio id="programMusic" loop
 src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bbd4e5d6c.mp3"></audio>
 
@@ -99,80 +128,127 @@ src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bbd4e5d6c.mp3"></a
 src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_884fe92c7b.mp3"></audio>
 
 <audio id="cheer"
-src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_crowd-cheer.mp3"></audio>
+src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_39b08f3c0f.mp3"></audio>
 
 <audio id="sigh"
-src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_crowd-disappointed.mp3"></audio>
+src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2bcdba5a2f.mp3"></audio>
 
 <script>
-const skater = document.getElementById("skater");
-const questionBox = document.getElementById("questionBox");
-const programMusic = document.getElementById("programMusic");
-const medalMusic = document.getElementById("medalMusic");
-const cheer = document.getElementById("cheer");
-const sigh = document.getElementById("sigh");
 
-let questionCount = 0;
-let score = 0;
-const totalQuestions = 10;
+/* ---------- AI-STYLE RINK GENERATION ---------- */
+/* draws a realistic Olympic ice arena */
 
-/* Start program music */
-programMusic.volume = 0.3;
+const canvas=document.getElementById("rink");
+const ctx=canvas.getContext("2d");
+
+function resize(){
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+drawRink();
+}
+window.onresize=resize;
+resize();
+
+function drawRink(){
+
+// crowd stands gradient
+let grad=ctx.createLinearGradient(0,0,0,canvas.height);
+grad.addColorStop(0,"#222");
+grad.addColorStop(.4,"#444");
+grad.addColorStop(.6,"#eee");
+grad.addColorStop(1,"#dff3ff");
+ctx.fillStyle=grad;
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+// crowd noise texture
+for(let i=0;i<4000;i++){
+ctx.fillStyle=`rgba(0,0,0,${Math.random()*.3})`;
+ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height*.4,2,2);
+}
+
+// rink boards
+ctx.fillStyle="white";
+ctx.fillRect(0,canvas.height*.45,canvas.width,20);
+
+// ice surface gradient
+let ice=ctx.createLinearGradient(0,canvas.height*.5,0,canvas.height);
+ice.addColorStop(0,"#f7fbff");
+ice.addColorStop(1,"#cfe9ff");
+ctx.fillStyle=ice;
+ctx.fillRect(0,canvas.height*.5,canvas.width,canvas.height);
+
+// skate scratch lines
+for(let i=0;i<200;i++){
+ctx.strokeStyle="rgba(180,200,255,.15)";
+ctx.beginPath();
+ctx.moveTo(Math.random()*canvas.width,canvas.height*.5+Math.random()*canvas.height*.5);
+ctx.lineTo(Math.random()*canvas.width,canvas.height*.5+Math.random()*canvas.height*.5);
+ctx.stroke();
+}
+}
+
+/* ---------- GAME LOGIC ---------- */
+
+const skater=document.getElementById("skater");
+const questionBox=document.getElementById("questionBox");
+const programMusic=document.getElementById("programMusic");
+const medalMusic=document.getElementById("medalMusic");
+const cheer=document.getElementById("cheer");
+const sigh=document.getElementById("sigh");
+
+let q=0;
+let score=0;
+const total=10;
+
+function startGame(){
+document.getElementById("start").style.display="none";
+programMusic.volume=.3;
 programMusic.play();
-
-/* Begin first jump */
 startJump();
-
-function startJump() {
-  if (questionCount >= totalQuestions) {
-    showEnd();
-    return;
-  }
-
-  skater.className = "";
-  skater.classList.add("jump");
-
-  // pause in air for question
-  setTimeout(() => {
-    questionBox.style.display = "block";
-    document.getElementById("question").innerText =
-      "Question " + (questionCount + 1);
-  }, 1200);
 }
 
-function answer(correct) {
-  questionBox.style.display = "none";
+function startJump(){
+if(q>=total){endGame();return;}
 
-  if (correct) {
-    score++;
-    cheer.play();
-    skater.className = "land";
-  } else {
-    sigh.play();
-    skater.className = "fall";
-  }
+skater.className="";
+skater.classList.add("jump");
 
-  questionCount++;
-
-  setTimeout(startJump, 1800);
+setTimeout(()=>{
+questionBox.style.display="block";
+document.getElementById("question").innerText=
+"Empirical Rule Question "+(q+1);
+},1200);
 }
 
-function showEnd() {
-  programMusic.pause();
-  medalMusic.play();
+function answer(correct){
+questionBox.style.display="none";
 
-  const end = document.getElementById("endScreen");
-  end.style.display = "block";
-
-  if (score === 10)
-    end.innerHTML = "🥇 GOLD MEDAL";
-  else if (score === 9)
-    end.innerHTML = "🥈 SILVER MEDAL";
-  else if (score === 8)
-    end.innerHTML = "🥉 BRONZE MEDAL";
-  else
-    end.innerHTML = "Try Again";
+if(correct){
+score++;
+cheer.play();
+skater.className="land";
+}else{
+sigh.play();
+skater.className="fall";
 }
+
+q++;
+setTimeout(startJump,2000);
+}
+
+function endGame(){
+programMusic.pause();
+medalMusic.play();
+
+const end=document.getElementById("endScreen");
+end.style.display="block";
+
+if(score===10) end.innerHTML="🥇 GOLD MEDAL";
+else if(score===9) end.innerHTML="🥈 SILVER MEDAL";
+else if(score===8) end.innerHTML="🥉 BRONZE MEDAL";
+else end.innerHTML="TRY AGAIN";
+}
+
 </script>
 
 </body>
