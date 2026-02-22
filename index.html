@@ -5,26 +5,64 @@
 <title>Figure Skating Program</title>
 
 <style>
-body{margin:0;overflow:hidden;background:#111;font-family:Arial}
-canvas{display:block}
-#questionBox{
-position:absolute;
-top:50%;left:50%;
-transform:translate(-50%,-50%);
-background:white;padding:25px;border-radius:12px;
-width:420px;display:none;
+body{
+  margin:0;
+  overflow:hidden;
+  background:black;
+  font-family:Arial;
 }
-button{width:100%;margin:6px 0;padding:12px}
+
+/* REALISTIC RINK FROM SIDELINE VIEW */
+#rink{
+  position:fixed;
+  width:100%;
+  height:100%;
+  background-image:url("https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?q=80&w=2070&auto=format&fit=crop");
+  background-size:cover;
+  background-position:center bottom;
+  filter:brightness(.95);
+}
+
+/* canvas layer */
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+}
+
+/* question box */
+#questionBox{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:white;
+  padding:25px;
+  border-radius:12px;
+  width:420px;
+  display:none;
+}
+
+button{
+  width:100%;
+  margin:6px 0;
+  padding:12px;
+}
+
 .screen{
-position:absolute;top:50%;left:50%;
-transform:translate(-50%,-50%);
-color:white;text-align:center;
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  color:white;
+  text-align:center;
 }
 </style>
 </head>
 
 <body>
 
+<div id="rink"></div>
 <canvas id="game"></canvas>
 
 <div id="questionBox">
@@ -34,7 +72,6 @@ color:white;text-align:center;
 
 <div id="startScreen" class="screen">
 <h1>Figure Skating Program</h1>
-<p>Answer correctly to land the jump.</p>
 <button onclick="startProgram()">Start</button>
 </div>
 
@@ -52,146 +89,86 @@ canvas.height=window.innerHeight;
 resize();
 window.addEventListener("resize",resize);
 
-/* ---------- ARENA BACKGROUND (SIDELINE VIEW) ---------- */
+/* ---------- SILHOUETTE SKATER (SVG PATH) ---------- */
+/* human figure skating pose */
 
-function drawArena(){
-
-// arena lighting gradient
-let g=ctx.createLinearGradient(0,0,0,canvas.height);
-g.addColorStop(0,"#1a1a1a");
-g.addColorStop(.5,"#2b2b2b");
-g.addColorStop(1,"#444");
-ctx.fillStyle=g;
-ctx.fillRect(0,0,canvas.width,canvas.height);
-
-// stands
-let standHeight=canvas.height*0.45;
-ctx.fillStyle="#3a3a3a";
-ctx.fillRect(0,0,canvas.width,standHeight);
-
-// crowd dots
-for(let i=0;i<800;i++){
-ctx.fillStyle=`hsl(${Math.random()*360},20%,${40+Math.random()*40}%)`;
-ctx.fillRect(Math.random()*canvas.width,
-Math.random()*standHeight,3,3);
-}
-
-// rink boards
-ctx.fillStyle="#ffffff";
-ctx.fillRect(0,standHeight,canvas.width,20);
-
-// glass panels
-ctx.strokeStyle="rgba(200,230,255,.4)";
-for(let i=0;i<canvas.width;i+=80){
-ctx.beginPath();
-ctx.moveTo(i,standHeight);
-ctx.lineTo(i,standHeight+20);
-ctx.stroke();
-}
-
-// ice surface
-let iceGrad=ctx.createLinearGradient(0,standHeight+20,0,canvas.height);
-iceGrad.addColorStop(0,"#eaf7ff");
-iceGrad.addColorStop(1,"#d6ecff");
-
-ctx.fillStyle=iceGrad;
-ctx.fillRect(0,standHeight+20,canvas.width,canvas.height);
-
-// red center line
-ctx.strokeStyle="rgba(255,0,0,.5)";
-ctx.lineWidth=3;
-ctx.beginPath();
-ctx.moveTo(canvas.width/2,standHeight+20);
-ctx.lineTo(canvas.width/2,canvas.height);
-ctx.stroke();
-
-return standHeight+20; // ice level
-}
-
-/* ---------- CLEANER FIGURE SKATER ---------- */
-
-let iceLevel=0;
-
-let skater={
-x:canvas.width/2,
-y:0,
-rotation:0,
-air:false,
-fallen:false,
-landingPose:false
-};
-
-function drawSkater(){
+function drawSkater(x,y,rotation,fallen,landing){
 
 ctx.save();
-ctx.translate(skater.x,skater.y);
-ctx.rotate(skater.rotation*Math.PI/180);
+ctx.translate(x,y);
+ctx.rotate(rotation*Math.PI/180);
 
-// fall state
-if(skater.fallen) ctx.rotate(Math.PI/2);
+if(fallen) ctx.rotate(Math.PI/2);
 
-// shadow
-ctx.fillStyle="rgba(0,0,0,.2)";
+ctx.scale(1.3,1.3);
+
+// shadow on ice
+ctx.fillStyle="rgba(0,0,0,.25)";
 ctx.beginPath();
-ctx.ellipse(0,45,20,6,0,0,Math.PI*2);
+ctx.ellipse(0,40,25,6,0,0,Math.PI*2);
 ctx.fill();
 
-// dress
-ctx.fillStyle="#ff2f92";
-ctx.beginPath();
-ctx.moveTo(0,-10);
-ctx.lineTo(-22,35);
-ctx.lineTo(22,35);
-ctx.fill();
-
-// torso
-ctx.fillStyle="#ffd7c2";
-ctx.fillRect(-7,-40,14,30);
+// silhouette color
+ctx.fillStyle="black";
 
 // head
 ctx.beginPath();
 ctx.arc(0,-50,9,0,Math.PI*2);
 ctx.fill();
 
-// bun hair
-ctx.fillStyle="#5a3a1a";
+// torso
 ctx.beginPath();
-ctx.arc(0,-60,5,0,Math.PI*2);
+ctx.moveTo(-8,-45);
+ctx.lineTo(8,-45);
+ctx.lineTo(12,-10);
+ctx.lineTo(-12,-10);
+ctx.closePath();
 ctx.fill();
 
-// arms
-ctx.strokeStyle="#ffd7c2";
-ctx.lineWidth=4;
+// skirt
 ctx.beginPath();
-ctx.moveTo(0,-25);
-ctx.lineTo(-30,-5);
-ctx.moveTo(0,-25);
-ctx.lineTo(30,-5);
+ctx.moveTo(-12,-10);
+ctx.lineTo(0,15);
+ctx.lineTo(12,-10);
+ctx.fill();
+
+// arms (graceful skating position)
+ctx.lineWidth=6;
+ctx.strokeStyle="black";
+ctx.beginPath();
+ctx.moveTo(-8,-35);
+ctx.quadraticCurveTo(-40,-10,-45,10);
+ctx.moveTo(8,-35);
+ctx.quadraticCurveTo(40,-10,45,10);
 ctx.stroke();
 
-// legs
-ctx.strokeStyle="#111";
-ctx.lineWidth=5;
+// skating leg
 ctx.beginPath();
-ctx.moveTo(0,35);
-ctx.lineTo(0,70);
+ctx.moveTo(0,15);
+ctx.lineTo(0,60);
+ctx.lineTo(5,60);
+ctx.lineTo(5,15);
+ctx.fill();
 
-if(skater.landingPose){
-ctx.moveTo(0,35);
-ctx.lineTo(30,65);
+// free leg on landing
+if(landing){
+ctx.beginPath();
+ctx.moveTo(0,15);
+ctx.lineTo(35,45);
+ctx.lineTo(40,40);
+ctx.lineTo(5,15);
+ctx.fill();
 }
-ctx.stroke();
-
-// blade
-ctx.fillRect(-12,70,24,4);
 
 ctx.restore();
 }
 
 /* ---------- PROGRAM ---------- */
 
-const elements=["Axel","Salchow","Toe Loop","Loop","Lutz",
-"Axel","Salchow","Toe Loop","Loop","Lutz"];
+const elements=[
+"Axel","Salchow","Toe Loop","Loop","Lutz",
+"Axel","Salchow","Toe Loop","Loop","Lutz"
+];
 
 const questions=[
 {q:"Percent within 1 SD?",choices:["68%","95%","99.7%","50%"],correct:0},
@@ -208,6 +185,16 @@ const questions=[
 
 let current=0;
 
+/* ---------- SKATER STATE ---------- */
+
+let skater={
+x:window.innerWidth*0.5,
+y:window.innerHeight*0.75,
+rotation:0,
+landing:false,
+fallen:false
+};
+
 /* ---------- START ---------- */
 
 function startProgram(){
@@ -215,35 +202,36 @@ document.getElementById("startScreen").style.display="none";
 nextJump();
 }
 
-/* ---------- SIMPLE JUMP ARC ---------- */
+/* ---------- JUMP ARC ---------- */
+/* upright vertical rotation */
 
 function nextJump(){
-if(current>=10)return;
+if(current>=10) return;
 performJump();
 }
 
 function performJump(){
 
+skater.landing=false;
 skater.fallen=false;
-skater.landingPose=false;
 
-let startY=iceLevel-70;
-let peak=startY-200;
+let ground=window.innerHeight*0.75;
+let peak=ground-250;
 
-let duration=800;
+let duration=900;
 let start=null;
 
 function rise(time){
-if(!start)start=time;
+if(!start) start=time;
 let p=(time-start)/duration;
 
 if(p<1){
-skater.y=startY-(startY-peak)*p;
-skater.rotation=720*p;
+skater.y=ground-(ground-peak)*p;
+skater.rotation=720*p; // upright spin
 requestAnimationFrame(rise);
 }else{
 skater.y=peak;
-pauseForQuestion(); // pause in air
+pauseForQuestion();
 }
 }
 requestAnimationFrame(rise);
@@ -278,6 +266,7 @@ document.getElementById("questionBox").style.display="block";
 }
 
 function answer(choice){
+
 document.getElementById("questionBox").style.display="none";
 
 if(choice===questions[current].correct){
@@ -290,18 +279,17 @@ current++;
 setTimeout(nextJump,2000);
 }
 
-/* ---------- LAND CLEAN ---------- */
+/* ---------- LAND ---------- */
 
 function landClean(){
 
-let ground=iceLevel-70;
+let ground=window.innerHeight*0.75;
 let start=skater.y;
 let t0=null;
-let duration=600;
 
 function down(t){
 if(!t0)t0=t;
-let p=(t-t0)/duration;
+let p=(t-t0)/600;
 
 if(p<1){
 skater.y=start+(ground-start)*p;
@@ -309,7 +297,7 @@ skater.rotation=0;
 requestAnimationFrame(down);
 }else{
 skater.y=ground;
-skater.landingPose=true;
+skater.landing=true;
 }
 }
 requestAnimationFrame(down);
@@ -319,14 +307,13 @@ requestAnimationFrame(down);
 
 function fall(){
 
-let ground=iceLevel-70;
+let ground=window.innerHeight*0.75;
 let start=skater.y;
 let t0=null;
-let duration=600;
 
 function down(t){
 if(!t0)t0=t;
-let p=(t-t0)/duration;
+let p=(t-t0)/600;
 
 if(p<1){
 skater.y=start+(ground-start)*p;
@@ -340,14 +327,11 @@ skater.fallen=true;
 requestAnimationFrame(down);
 }
 
-/* ---------- GAME LOOP ---------- */
+/* ---------- RENDER LOOP ---------- */
 
 function loop(){
-iceLevel=drawArena();
-
-if(skater.y===0) skater.y=iceLevel-70;
-
-drawSkater();
+ctx.clearRect(0,0,canvas.width,canvas.height);
+drawSkater(skater.x,skater.y,skater.rotation,skater.fallen,skater.landing);
 requestAnimationFrame(loop);
 }
 loop();
