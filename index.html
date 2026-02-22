@@ -2,308 +2,379 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Figure Skating Empirical Rule Program</title>
+<title>Olympic Figure Skating Study Game</title>
 
 <style>
 body{
-margin:0;
-overflow:hidden;
-font-family:Arial;
-background:black;
+  margin:0;
+  background:#061a33;
+  font-family:Arial;
+  color:white;
+  text-align:center;
 }
 
-/* rink */
-#rink{
-position:absolute;
-width:100vw;
-height:100vh;
+canvas{
+  display:block;
+  margin:auto;
+  border:4px solid white;
 }
 
-/* skater */
-#skater{
-position:absolute;
-bottom:120px;
-left:50%;
-transform:translateX(-50%);
-width:90px;
-transition:all 1s ease;
+#endingScreen{
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  background:rgba(0,0,40,.92);
 }
 
-/* skating flow states */
-.prepare{ transform:translate(-50%,0) skewX(-10deg); }
-.jump{ transform:translate(-50%,-260px); }
-.land{ transform:translate(-50%,0); }
-.fall{
-transform:translate(-50%,0) rotate(90deg);
-transform-origin:bottom center;
-}
-
-/* question */
-#questionBox{
-position:absolute;
-top:20px;
-left:50%;
-transform:translateX(-50%);
-background:white;
-padding:20px;
-border-radius:12px;
-display:none;
-max-width:500px;
-text-align:center;
-}
-
-button{
-padding:10px 18px;
-margin:6px;
-font-size:16px;
-}
-
-#start{
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-font-size:28px;
-padding:20px 40px;
-}
-
-#endScreen{
-position:absolute;
-top:40%;
-left:50%;
-transform:translate(-50%,-50%);
-font-size:50px;
-color:white;
-display:none;
-}
+.big{font-size:60px;}
+button{padding:12px 20px;font-size:18px;margin-top:20px;}
 </style>
 </head>
 
 <body>
 
-<canvas id="rink"></canvas>
+<h1>Olympic Figure Skating Study Game</h1>
+<canvas id="game" width="900" height="500"></canvas>
 
-<button id="start" onclick="startGame()">Start Program</button>
-
-<!-- single intact human silhouette -->
-<img id="skater"
-src="data:image/svg+xml;utf8,
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 260'>
-<path fill='black'
-d='M50 10
-C45 10 38 20 38 28
-C38 38 45 42 50 42
-C55 42 62 38 62 28
-C62 20 55 10 50 10
-
-M45 42
-C40 70 40 95 42 120
-L30 160
-L38 165
-L50 130
-L62 165
-L70 160
-L58 120
-C60 95 60 70 55 42 Z
-
-M30 60 L15 90 L25 95 L38 70 Z
-M70 60 L85 90 L75 95 L62 70 Z
-
-M42 120 L40 210 L48 210 L50 150 Z
-M58 120 L60 210 L52 210 L50 150 Z
-
-M35 210 L65 210 L65 215 L35 215 Z'/>
-</svg>">
-
-<div id="questionBox">
-<div id="question"></div>
-<div id="answers"></div>
+<div id="endingScreen">
+<div id="resultText" class="big"></div>
+<div id="finalScore"></div>
+<button onclick="location.reload()">Play Again</button>
 </div>
 
-<div id="endScreen"></div>
-
-<!-- audio -->
-<audio id="programMusic" loop
-src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bbd4e5d6c.mp3"></audio>
-
-<audio id="medalMusic"
-src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_884fe92c7b.mp3"></audio>
-
-<audio id="cheer"
-src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_39b08f3c0f.mp3"></audio>
-
-<audio id="sigh"
-src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2bcdba5a2f.mp3"></audio>
-
 <script>
-
-/* ---------- REALISTIC RINK ---------- */
-const canvas=document.getElementById("rink");
+const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-function resize(){
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
-drawRink();
-}
-window.onresize=resize;
-resize();
+/* ---------- AUDIO ---------- */
 
-function drawRink(){
+const programMusic=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_115b9bce9f.mp3");
+programMusic.loop=true;
+programMusic.volume=.3;
 
-// crowd stands
-let g=ctx.createLinearGradient(0,0,0,canvas.height);
-g.addColorStop(0,"#1a1a1a");
-g.addColorStop(.4,"#444");
-g.addColorStop(.5,"#ffffff");
-g.addColorStop(1,"#dff3ff");
-ctx.fillStyle=g;
-ctx.fillRect(0,0,canvas.width,canvas.height);
+const cheer=new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
+const gasp=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
+const medalMusic=new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
 
-// crowd texture
-for(let i=0;i<5000;i++){
-ctx.fillStyle=`rgba(0,0,0,${Math.random()*.3})`;
-ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height*.4,2,2);
-}
-
-// rink boards
-ctx.fillStyle="white";
-ctx.fillRect(0,canvas.height*.45,canvas.width,15);
-
-// ice surface
-let ice=ctx.createLinearGradient(0,canvas.height*.45,0,canvas.height);
-ice.addColorStop(0,"#f7fbff");
-ice.addColorStop(1,"#cfe9ff");
-ctx.fillStyle=ice;
-ctx.fillRect(0,canvas.height*.45,canvas.width,canvas.height);
-
-// skate marks
-for(let i=0;i<300;i++){
-ctx.strokeStyle="rgba(180,200,255,.2)";
-ctx.beginPath();
-ctx.moveTo(Math.random()*canvas.width,canvas.height*.45+Math.random()*canvas.height);
-ctx.lineTo(Math.random()*canvas.width,canvas.height*.45+Math.random()*canvas.height);
-ctx.stroke();
-}
-}
-
-/* ---------- EMPIRICAL RULE QUESTIONS ---------- */
+/* ---------- QUESTIONS ---------- */
 
 const questions=[
-{q:"In a normal distribution, about what percent of data lies within 1 standard deviation of the mean?",
-a:["50%","68%","95%","99.7%"],c:1},
-
-{q:"About what percent of data lies within 2 standard deviations?",
-a:["68%","75%","95%","99%"],c:2},
-
-{q:"About what percent lies within 3 standard deviations?",
-a:["90%","95%","97%","99.7%"],c:3},
-
-{q:"If the mean is 100 and SD is 10, what range covers ~68% of data?",
-a:["80–120","90–110","70–130","60–140"],c:1},
-
-{q:"If mean = 50 and SD = 5, about 95% of values fall between:",
-a:["45–55","40–60","35–65","30–70"],c:1},
-
-{q:"The empirical rule applies to what type of distribution?",
-a:["Uniform","Skewed","Normal (bell-shaped)","Random"],c:2},
-
-{q:"If a value is 3 SD above the mean, it is:",
-a:["Very common","Average","Unusual","Impossible"],c:2},
-
-{q:"What percent of data is outside ±2 SD?",
-a:["5%","32%","1%","68%"],c:0},
-
-{q:"If mean=70 and SD=8, about 99.7% falls between:",
-a:["62–78","54–86","46–94","38–102"],c:2},
-
-{q:"Empirical rule is also called:",
-a:["Z rule","68-95-99.7 rule","Central rule","Mean rule"],c:1}
+{q:"Percent within 1 standard deviation?",a:"68"},
+{q:"Percent within 2 standard deviations?",a:"95"},
+{q:"Percent within 3 standard deviations?",a:"99.7"},
+{q:"Mean=100 SD=10 → 1 SD range?",a:"90-110"},
+{q:"Mean=50 SD=5 → 2 SD range?",a:"40-60"},
+{q:"Distribution for empirical rule?",a:"normal"},
+{q:"Percent beyond 2 SD one side?",a:"2.5"},
+{q:"Mean location in normal distribution?",a:"center"},
+{q:"Percent beyond 3 SD total?",a:"0.3"},
+{q:"Shape of normal distribution?",a:"bell"}
 ];
 
-/* ---------- GAME ---------- */
+/* ---------- JUMPS ---------- */
 
-const skater=document.getElementById("skater");
-const qBox=document.getElementById("questionBox");
-const qText=document.getElementById("question");
-const answersDiv=document.getElementById("answers");
+const jumps=[
+"Single Axel","Double Lutz","Triple Salchow",
+"Double Loop","Triple Flip","Double Toe",
+"Triple Lutz","Single Loop","Double Axel","Triple Toe"
+];
 
-const programMusic=document.getElementById("programMusic");
-const medalMusic=document.getElementById("medalMusic");
-const cheer=document.getElementById("cheer");
-const sigh=document.getElementById("sigh");
+/* ---------- GAME STATE ---------- */
 
 let index=0;
 let score=0;
+let misses=0;
+let state="skating";
 
-function startGame(){
-document.getElementById("start").style.display="none";
-programMusic.volume=.3;
-programMusic.play();
-nextJump();
+/* ---------- SKATER ---------- */
+
+let skater={
+x:100,
+y:350,
+vy:0,
+rotation:0,
+frame:0,
+costume:"#ff3fd8"
+};
+
+/* ---------- EFFECTS ---------- */
+
+let sparkles=[];
+let trails=[];
+let confetti=[];
+
+/* ---------- COMPETITION ARENA ---------- */
+
+function drawArena(){
+
+// ice gradient
+let g=ctx.createLinearGradient(0,0,0,500);
+g.addColorStop(0,"#e8faff");
+g.addColorStop(1,"#ffffff");
+ctx.fillStyle=g;
+ctx.fillRect(0,0,900,500);
+
+// rink lines
+ctx.strokeStyle="#3aa0ff";
+ctx.lineWidth=3;
+ctx.beginPath();
+ctx.moveTo(0,250);
+ctx.lineTo(900,250);
+ctx.stroke();
+
+// boards
+ctx.fillStyle="white";
+ctx.fillRect(0,320,900,80);
+
+ctx.fillStyle="#ff0000";
+ctx.fillRect(0,320,900,5);
+
+// sponsor panels
+for(let i=0;i<6;i++){
+ctx.fillStyle="#0a4c8f";
+ctx.fillRect(i*150+20,340,100,30);
+ctx.fillStyle="white";
+ctx.fillText("ISU",i*150+55,360);
 }
 
-/* jump flow */
-function nextJump(){
+// crowd seating gradient
+let cg=ctx.createLinearGradient(0,0,0,150);
+cg.addColorStop(0,"#222");
+cg.addColorStop(1,"#555");
+ctx.fillStyle=cg;
+ctx.fillRect(0,0,900,150);
 
-if(index>=questions.length){endGame();return;}
-
-// prepare edge
-skater.className="prepare";
-
-// takeoff
-setTimeout(()=>{
-skater.className="jump";
-
-// pause in air → question appears
-setTimeout(showQuestion,900);
-},600);
+// audience rows
+for(let r=0;r<5;r++){
+for(let i=0;i<50;i++){
+ctx.fillStyle=`hsl(${Math.random()*360},50%,60%)`;
+ctx.beginPath();
+ctx.arc(i*18+5,r*20+30,4,0,Math.PI*2);
+ctx.fill();
+}
 }
 
-function showQuestion(){
-qBox.style.display="block";
+// arena lights
+ctx.fillStyle="rgba(255,255,255,.15)";
+ctx.fillRect(0,150,900,50);
+}
 
-const item=questions[index];
-qText.innerText=item.q;
+/* ---------- REALISTIC CARTOON SKATER ---------- */
 
-answersDiv.innerHTML="";
-item.a.forEach((choice,i)=>{
-let b=document.createElement("button");
-b.innerText=choice;
-b.onclick=()=>answer(i===item.c);
-answersDiv.appendChild(b);
+function drawSkater(){
+
+ctx.save();
+ctx.translate(skater.x,skater.y);
+
+// skate trail
+trails.push({x:skater.x,y:skater.y,life:20});
+
+// jump rotation
+if(state==="jump") skater.rotation+=0.3;
+ctx.rotate(skater.rotation);
+
+// legs
+ctx.strokeStyle="black";
+ctx.lineWidth=4;
+
+let stride=Math.sin(skater.frame/5)*8;
+
+ctx.beginPath();
+ctx.moveTo(-6,0);
+ctx.lineTo(-10,25);
+ctx.moveTo(6,0);
+ctx.lineTo(10+stride,25);
+ctx.stroke();
+
+// skates
+ctx.fillStyle="silver";
+ctx.fillRect(-12,25,8,3);
+ctx.fillRect(6+stride,25,8,3);
+
+// torso costume
+ctx.fillStyle=skater.costume;
+ctx.beginPath();
+ctx.moveTo(-12,-40);
+ctx.lineTo(12,-40);
+ctx.lineTo(8,0);
+ctx.lineTo(-8,0);
+ctx.fill();
+
+// arms (different pose during jump)
+ctx.strokeStyle="black";
+ctx.lineWidth=3;
+
+ctx.beginPath();
+ctx.moveTo(0,-30);
+ctx.lineTo(20*Math.sin(skater.frame/4),-10);
+
+ctx.moveTo(0,-30);
+ctx.lineTo(-20*Math.sin(skater.frame/4),-10);
+ctx.stroke();
+
+// head
+ctx.fillStyle="#ffd6b0";
+ctx.beginPath();
+ctx.arc(0,-50,9,0,Math.PI*2);
+ctx.fill();
+
+// sparkle
+sparkles.push({
+x:skater.x+Math.random()*10-5,
+y:skater.y+20,
+life:15
+});
+
+ctx.restore();
+}
+
+/* ---------- PARTICLES ---------- */
+
+function drawParticles(){
+
+sparkles.forEach(p=>{
+ctx.fillStyle="white";
+ctx.fillRect(p.x,p.y,2,2);
+p.life--;
+});
+sparkles=sparkles.filter(p=>p.life>0);
+
+trails.forEach(t=>{
+ctx.fillStyle="rgba(200,240,255,.3)";
+ctx.fillRect(t.x-5,t.y+20,10,3);
+t.life--;
+});
+trails=trails.filter(t=>t.life>0);
+
+confetti.forEach(c=>{
+ctx.fillStyle=c.color;
+ctx.fillRect(c.x,c.y,6,6);
+c.y+=3;
 });
 }
 
-function answer(correct){
-qBox.style.display="none";
+/* ---------- CONFETTI ---------- */
 
-if(correct){
-score++;
+function launchConfetti(){
+for(let i=0;i<200;i++){
+confetti.push({
+x:Math.random()*900,
+y:-20,
+color:`hsl(${Math.random()*360},70%,60%)`
+});
+}
+}
+
+/* ---------- JUMP ---------- */
+
+function triggerJump(){
+state="jump";
+skater.vy=-13;
+}
+
+function askQuestion(){
+const q=questions[index];
+const ans=prompt(jumps[index]+"\n\n"+q.q);
+
+if(ans && ans.toLowerCase()==q.a.toLowerCase()){
+score+=10;
 cheer.play();
-skater.className="land";
 }else{
-sigh.play();
-skater.className="fall";
+misses++;
+gasp.play();
+}
 }
 
-index++;
-setTimeout(nextJump,1800);
+/* ---------- FINAL SPIN ---------- */
+
+let spin=0;
+function finalSpin(){
+spin+=0.2;
+ctx.save();
+ctx.translate(skater.x,skater.y);
+ctx.rotate(spin);
+ctx.fillStyle=skater.costume;
+ctx.fillRect(-12,-40,24,40);
+ctx.restore();
 }
 
-function endGame(){
+/* ---------- END ---------- */
+
+function endProgram(){
+state="finished";
 programMusic.pause();
 medalMusic.play();
 
-const end=document.getElementById("endScreen");
-end.style.display="block";
+let medal="Gold";
+if(misses==1) medal="Silver";
+if(misses==2) medal="Bronze";
+if(misses>=3) medal="Lost";
 
-if(score===10) end.innerHTML="🥇 GOLD MEDAL";
-else if(score===9) end.innerHTML="🥈 SILVER MEDAL";
-else if(score===8) end.innerHTML="🥉 BRONZE MEDAL";
-else end.innerHTML="TRY AGAIN";
+if(medal==="Gold") launchConfetti();
+
+document.getElementById("endingScreen").style.display="flex";
+document.getElementById("resultText").innerHTML=
+medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
+
+document.getElementById("finalScore").innerHTML=
+"Final Score: "+score+"<br>Missed: "+misses+" / 10";
 }
 
+/* ---------- GAME LOOP ---------- */
+
+function update(){
+
+drawArena();
+
+if(state==="skating"){
+skater.x+=2;
+skater.frame++;
+
+if(skater.x>700){
+if(index<10) triggerJump();
+else state="spin";
+}
+}
+
+if(state==="jump"){
+skater.y+=skater.vy;
+skater.vy+=0.5;
+
+if(skater.y>=350){
+skater.y=350;
+skater.x=100;
+askQuestion();
+index++;
+state="skating";
+}
+}
+
+if(state==="spin"){
+finalSpin();
+setTimeout(endProgram,3000);
+state="waiting";
+}
+
+drawSkater();
+drawParticles();
+
+ctx.fillStyle="black";
+ctx.fillText("Score: "+score,20,20);
+ctx.fillText("Jump "+(index+1)+" / 10",20,40);
+
+requestAnimationFrame(update);
+}
+
+/* ---------- START ---------- */
+programMusic.play();
+update();
 </script>
+
 </body>
 </html>
