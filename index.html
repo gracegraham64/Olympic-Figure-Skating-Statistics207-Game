@@ -37,7 +37,6 @@ button{padding:12px 20px;font-size:18px;margin:5px;cursor:pointer;}
 
 <div id="endingScreen" style="display:none">
   <div id="resultText" class="big"></div>
-  <canvas id="medalCanvas" width="500" height="500"></canvas>
   <div id="finalScore" style="margin-top:20px;font-size:24px;"></div>
   <button onclick="location.reload()">Play Again</button>
 </div>
@@ -69,10 +68,8 @@ const jumps=["Single Axel","Double Lutz","Triple Salchow","Double Loop","Triple 
 let score=0, misses=0, index=0;
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
-const medalCanvas=document.getElementById("medalCanvas");
-const mctx=medalCanvas.getContext("2d");
-let skater={x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,targetX:700,rotation:0};
-let showingQuestion=false,inAir=false;
+let skater={x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,rotation:0};
+let inAir=false,showingQuestion=false;
 
 //--------- ARENA ---------
 function drawArena(){
@@ -108,15 +105,13 @@ function drawSkater(){
 
 //--------- JUMP & QUESTION ---------
 function triggerJump(){
-  if(!inAir){
-    skater.vy=-12; skater.targetX=Math.random()*700+100;
-    skater.direction=skater.targetX>skater.x?1:-1;
-    inAir=true;
+  if(!inAir && index<10){
+    skater.vy=-12; inAir=true; showQuestion();
   }
 }
 
 function showQuestion(){
-  if(showingQuestion || index>=10) return;
+  if(showingQuestion) return;
   showingQuestion=true;
   const container=document.getElementById("questionContainer");
   const qText=document.getElementById("questionText");
@@ -125,16 +120,17 @@ function showQuestion(){
   const q=questions[index];
   qText.innerText=jumps[index]+": "+q.q;
   answersDiv.innerHTML="";
-  skater.vy=0; // freeze
+  skater.vy=0; // freeze mid-air
   q.options.forEach(opt=>{
     const btn=document.createElement("button");
     btn.innerText=opt;
     btn.onclick=()=>{
-      container.style.display="none"; showingQuestion=false;
+      container.style.display="none";
+      showingQuestion=false;
       if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); skater.rotation=0; skater.vy=5; }
       else{ misses++; aww.play(); skater.rotation=Math.PI/2; skater.vy=5; }
       index++;
-      if(index>=10) setTimeout(endGame,1000);
+      if(index>=10){ setTimeout(endGame,1000); }
     };
     answersDiv.appendChild(btn);
   });
@@ -157,10 +153,12 @@ function update(){
   if(!showingQuestion && !inAir){
     skater.x+=2*skater.direction;
     if(skater.x<50) skater.direction=1; if(skater.x>850) skater.direction=-1;
+    // random jump every 150 frames
+    if(Math.random()<0.02) triggerJump();
   }
   if(inAir){
     skater.y+=skater.vy; skater.vy+=0.5;
-    if(skater.y>=350){ skater.y=350; skater.vy=0; inAir=false; showQuestion();}
+    if(skater.y>=350){ skater.y=350; skater.vy=0; inAir=false; }
   }
   skater.frame++;
   drawSkater();
@@ -172,7 +170,6 @@ document.getElementById("startButton").addEventListener("click",()=>{
   document.getElementById("startScreen").style.display="none";
   canvas.style.display="block";
   programMusic.play().catch(()=>{});
-  triggerJump();
   update();
 });
 </script>
