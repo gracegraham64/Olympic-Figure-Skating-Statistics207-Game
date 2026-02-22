@@ -1,341 +1,179 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Figure Skating Program</title>
+<title>Figure Skating Quiz</title>
 
 <style>
-body{
-  margin:0;
-  overflow:hidden;
-  background:black;
-  font-family:Arial;
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
 }
 
-/* REALISTIC RINK FROM SIDELINE VIEW */
-#rink{
-  position:fixed;
-  width:100%;
-  height:100%;
-  background-image:url("https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?q=80&w=2070&auto=format&fit=crop");
-  background-size:cover;
-  background-position:center bottom;
-  filter:brightness(.95);
+/* Rink background */
+#rink {
+  width: 100vw;
+  height: 100vh;
+  background-image: url("https://upload.wikimedia.org/wikipedia/commons/3/3e/Ice_skating_rink.jpg");
+  background-size: cover;
+  background-position: center;
+  position: relative;
 }
 
-/* canvas layer */
-canvas{
-  position:fixed;
-  top:0;
-  left:0;
+/* Skater image */
+#skater {
+  position: absolute;
+  bottom: 60px;
+  left: 45%;
+  width: 120px;
+  transition: all 1.2s ease;
 }
 
-/* question box */
-#questionBox{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  background:white;
-  padding:25px;
-  border-radius:12px;
-  width:420px;
-  display:none;
+/* Jump up */
+.jump {
+  transform: translateY(-260px);
 }
 
-button{
-  width:100%;
-  margin:6px 0;
-  padding:12px;
+/* Clean landing */
+.land {
+  transform: translateY(0);
 }
 
-.screen{
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  color:white;
-  text-align:center;
+/* Fall animation */
+.fall {
+  transform: translateY(0) rotate(90deg);
+}
+
+#questionBox {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.9);
+  padding: 20px;
+  border-radius: 10px;
+  display: none;
+  text-align: center;
+}
+
+button {
+  padding: 10px 15px;
+  margin: 5px;
+  font-size: 16px;
+}
+
+#endScreen {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40px;
+  display: none;
 }
 </style>
 </head>
 
 <body>
 
-<div id="rink"></div>
-<canvas id="game"></canvas>
+<div id="rink">
 
-<div id="questionBox">
-<h3 id="questionText"></h3>
-<div id="choices"></div>
+  <!-- Realistic skater image (replace if you want) -->
+  <img id="skater"
+  src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Figure_skater_silhouette.png">
+
+  <div id="questionBox">
+    <div id="question"></div>
+    <button onclick="answer(true)">Correct Answer</button>
+    <button onclick="answer(false)">Wrong Answer</button>
+  </div>
+
+  <div id="endScreen"></div>
+
 </div>
 
-<div id="startScreen" class="screen">
-<h1>Figure Skating Program</h1>
-<button onclick="startProgram()">Start</button>
-</div>
+<!-- Sounds -->
+<audio id="programMusic" loop
+src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bbd4e5d6c.mp3"></audio>
+
+<audio id="medalMusic"
+src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_884fe92c7b.mp3"></audio>
+
+<audio id="cheer"
+src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_crowd-cheer.mp3"></audio>
+
+<audio id="sigh"
+src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_crowd-disappointed.mp3"></audio>
 
 <script>
+const skater = document.getElementById("skater");
+const questionBox = document.getElementById("questionBox");
+const programMusic = document.getElementById("programMusic");
+const medalMusic = document.getElementById("medalMusic");
+const cheer = document.getElementById("cheer");
+const sigh = document.getElementById("sigh");
 
-/* ---------- CANVAS ---------- */
+let questionCount = 0;
+let score = 0;
+const totalQuestions = 10;
 
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+/* Start program music */
+programMusic.volume = 0.3;
+programMusic.play();
 
-function resize(){
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
-}
-resize();
-window.addEventListener("resize",resize);
+/* Begin first jump */
+startJump();
 
-/* ---------- SILHOUETTE SKATER (SVG PATH) ---------- */
-/* human figure skating pose */
+function startJump() {
+  if (questionCount >= totalQuestions) {
+    showEnd();
+    return;
+  }
 
-function drawSkater(x,y,rotation,fallen,landing){
+  skater.className = "";
+  skater.classList.add("jump");
 
-ctx.save();
-ctx.translate(x,y);
-ctx.rotate(rotation*Math.PI/180);
-
-if(fallen) ctx.rotate(Math.PI/2);
-
-ctx.scale(1.3,1.3);
-
-// shadow on ice
-ctx.fillStyle="rgba(0,0,0,.25)";
-ctx.beginPath();
-ctx.ellipse(0,40,25,6,0,0,Math.PI*2);
-ctx.fill();
-
-// silhouette color
-ctx.fillStyle="black";
-
-// head
-ctx.beginPath();
-ctx.arc(0,-50,9,0,Math.PI*2);
-ctx.fill();
-
-// torso
-ctx.beginPath();
-ctx.moveTo(-8,-45);
-ctx.lineTo(8,-45);
-ctx.lineTo(12,-10);
-ctx.lineTo(-12,-10);
-ctx.closePath();
-ctx.fill();
-
-// skirt
-ctx.beginPath();
-ctx.moveTo(-12,-10);
-ctx.lineTo(0,15);
-ctx.lineTo(12,-10);
-ctx.fill();
-
-// arms (graceful skating position)
-ctx.lineWidth=6;
-ctx.strokeStyle="black";
-ctx.beginPath();
-ctx.moveTo(-8,-35);
-ctx.quadraticCurveTo(-40,-10,-45,10);
-ctx.moveTo(8,-35);
-ctx.quadraticCurveTo(40,-10,45,10);
-ctx.stroke();
-
-// skating leg
-ctx.beginPath();
-ctx.moveTo(0,15);
-ctx.lineTo(0,60);
-ctx.lineTo(5,60);
-ctx.lineTo(5,15);
-ctx.fill();
-
-// free leg on landing
-if(landing){
-ctx.beginPath();
-ctx.moveTo(0,15);
-ctx.lineTo(35,45);
-ctx.lineTo(40,40);
-ctx.lineTo(5,15);
-ctx.fill();
+  // pause in air for question
+  setTimeout(() => {
+    questionBox.style.display = "block";
+    document.getElementById("question").innerText =
+      "Question " + (questionCount + 1);
+  }, 1200);
 }
 
-ctx.restore();
+function answer(correct) {
+  questionBox.style.display = "none";
+
+  if (correct) {
+    score++;
+    cheer.play();
+    skater.className = "land";
+  } else {
+    sigh.play();
+    skater.className = "fall";
+  }
+
+  questionCount++;
+
+  setTimeout(startJump, 1800);
 }
 
-/* ---------- PROGRAM ---------- */
+function showEnd() {
+  programMusic.pause();
+  medalMusic.play();
 
-const elements=[
-"Axel","Salchow","Toe Loop","Loop","Lutz",
-"Axel","Salchow","Toe Loop","Loop","Lutz"
-];
+  const end = document.getElementById("endScreen");
+  end.style.display = "block";
 
-const questions=[
-{q:"Percent within 1 SD?",choices:["68%","95%","99.7%","50%"],correct:0},
-{q:"Percent within 2 SD?",choices:["68%","95%","75%","50%"],correct:1},
-{q:"Percent within 3 SD?",choices:["90%","95%","99.7%","80%"],correct:2},
-{q:"Mean=100 SD=10 → 68%?",choices:["90–110","80–120","70–130","95–105"],correct:0},
-{q:"Mean=50 SD=5 → 95%?",choices:["45–55","40–60","35–65","48–52"],correct:1},
-{q:"Empirical rule applies to?",choices:["Uniform","Normal","Skewed","Random"],correct:1},
-{q:"Beyond 3 SD?",choices:["0.3%","32%","5%","10%"],correct:0},
-{q:"Mean=70 SD=5 → 99.7%?",choices:["65–75","60–80","55–85","50–90"],correct:2},
-{q:"Between 1–2 SD one side?",choices:["13.5%","34%","47.5%","2.5%"],correct:0},
-{q:"Within 2 SD but outside 1 SD?",choices:["27%","13.5%","68%","95%"],correct:0}
-];
-
-let current=0;
-
-/* ---------- SKATER STATE ---------- */
-
-let skater={
-x:window.innerWidth*0.5,
-y:window.innerHeight*0.75,
-rotation:0,
-landing:false,
-fallen:false
-};
-
-/* ---------- START ---------- */
-
-function startProgram(){
-document.getElementById("startScreen").style.display="none";
-nextJump();
+  if (score === 10)
+    end.innerHTML = "🥇 GOLD MEDAL";
+  else if (score === 9)
+    end.innerHTML = "🥈 SILVER MEDAL";
+  else if (score === 8)
+    end.innerHTML = "🥉 BRONZE MEDAL";
+  else
+    end.innerHTML = "Try Again";
 }
-
-/* ---------- JUMP ARC ---------- */
-/* upright vertical rotation */
-
-function nextJump(){
-if(current>=10) return;
-performJump();
-}
-
-function performJump(){
-
-skater.landing=false;
-skater.fallen=false;
-
-let ground=window.innerHeight*0.75;
-let peak=ground-250;
-
-let duration=900;
-let start=null;
-
-function rise(time){
-if(!start) start=time;
-let p=(time-start)/duration;
-
-if(p<1){
-skater.y=ground-(ground-peak)*p;
-skater.rotation=720*p; // upright spin
-requestAnimationFrame(rise);
-}else{
-skater.y=peak;
-pauseForQuestion();
-}
-}
-requestAnimationFrame(rise);
-}
-
-/* ---------- AIR PAUSE ---------- */
-
-function pauseForQuestion(){
-showQuestion();
-}
-
-/* ---------- QUESTIONS ---------- */
-
-function showQuestion(){
-
-let q=questions[current];
-
-document.getElementById("questionText").innerText=
-elements[current]+" Jump:\n"+q.q;
-
-let c=document.getElementById("choices");
-c.innerHTML="";
-
-q.choices.forEach((choice,i)=>{
-let b=document.createElement("button");
-b.innerText=choice;
-b.onclick=()=>answer(i);
-c.appendChild(b);
-});
-
-document.getElementById("questionBox").style.display="block";
-}
-
-function answer(choice){
-
-document.getElementById("questionBox").style.display="none";
-
-if(choice===questions[current].correct){
-landClean();
-}else{
-fall();
-}
-
-current++;
-setTimeout(nextJump,2000);
-}
-
-/* ---------- LAND ---------- */
-
-function landClean(){
-
-let ground=window.innerHeight*0.75;
-let start=skater.y;
-let t0=null;
-
-function down(t){
-if(!t0)t0=t;
-let p=(t-t0)/600;
-
-if(p<1){
-skater.y=start+(ground-start)*p;
-skater.rotation=0;
-requestAnimationFrame(down);
-}else{
-skater.y=ground;
-skater.landing=true;
-}
-}
-requestAnimationFrame(down);
-}
-
-/* ---------- FALL ---------- */
-
-function fall(){
-
-let ground=window.innerHeight*0.75;
-let start=skater.y;
-let t0=null;
-
-function down(t){
-if(!t0)t0=t;
-let p=(t-t0)/600;
-
-if(p<1){
-skater.y=start+(ground-start)*p;
-skater.rotation=360*p;
-requestAnimationFrame(down);
-}else{
-skater.y=ground;
-skater.fallen=true;
-}
-}
-requestAnimationFrame(down);
-}
-
-/* ---------- RENDER LOOP ---------- */
-
-function loop(){
-ctx.clearRect(0,0,canvas.width,canvas.height);
-drawSkater(skater.x,skater.y,skater.rotation,skater.fallen,skater.landing);
-requestAnimationFrame(loop);
-}
-loop();
-
 </script>
+
 </body>
 </html>
