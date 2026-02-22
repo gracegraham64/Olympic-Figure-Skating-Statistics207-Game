@@ -6,347 +6,172 @@
 
 <style>
 body{
-margin:0;
-background:#061a33;
-color:white;
-font-family:Arial;
-text-align:center;
+  margin:0;
+  overflow:hidden;
+
+  /* YOUR PHOTO BACKGROUND */
+  background:url("rink.jpg") center bottom / cover no-repeat fixed;
+}
+
+/* slight glass overlay so game elements pop */
+#overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.12);
+  backdrop-filter:blur(2px);
 }
 
 canvas{
-display:block;
-margin:auto;
-border:4px solid white;
+  display:block;
 }
-
-/* END SCREEN */
-#endingScreen{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-display:none;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-background:rgba(0,0,40,.95);
-}
-
-.big{font-size:60px;}
-button{cursor:pointer;}
-
-/* QUESTION POPUP */
-
-#questionBox{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-display:none;
-justify-content:center;
-align-items:center;
-background:rgba(0,0,40,.7);
-animation:fadeIn .4s ease;
-}
-
-#questionCard{
-background:linear-gradient(#ffffff,#e6f4ff);
-color:black;
-padding:30px;
-border-radius:20px;
-box-shadow:0 0 40px rgba(0,150,255,.6);
-width:420px;
-animation:pop .4s ease;
-}
-
-#questionCard h2{
-color:#0066cc;
-margin-top:0;
-}
-
-.answerBtn{
-display:block;
-width:100%;
-margin-top:10px;
-padding:12px;
-font-size:18px;
-border:none;
-border-radius:12px;
-background:#0066cc;
-color:white;
-}
-
-.answerBtn:hover{
-background:#004a99;
-}
-
-@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
-@keyframes pop{from{transform:scale(.8);}to{transform:scale(1);}}
 </style>
 </head>
 
 <body>
 
-<h1>Olympic Figure Skating Study Game</h1>
-<canvas id="game" width="900" height="500"></canvas>
-
-<!-- QUESTION POPUP -->
-<div id="questionBox">
-<div id="questionCard">
-<h2 id="jumpTitle"></h2>
-<p id="questionText"></p>
-<div id="answers"></div>
-</div>
-</div>
-
-<!-- ENDING -->
-<div id="endingScreen">
-<div id="resultText" class="big"></div>
-<div id="finalScore"></div>
-<button onclick="location.reload()">Play Again</button>
-</div>
+<div id="overlay"></div>
+<canvas id="game"></canvas>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-/* AUDIO */
-const programMusic=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_115b9bce9f.mp3");
-programMusic.loop=true;
-programMusic.volume=.3;
-
-const cheer=new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
-const gasp=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
-const medalMusic=new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
-
-/* MULTIPLE CHOICE QUESTIONS */
-const questions=[
-{q:"Percent within 1 standard deviation?",options:["50%","68%","95%","99.7%"],a:"68%"},
-{q:"Percent within 2 standard deviations?",options:["68%","80%","95%","99%"],a:"95%"},
-{q:"Percent within 3 standard deviations?",options:["90%","95%","99.7%","99%"],a:"99.7%"},
-{q:"Mean=100 SD=10 → 1 SD range?",options:["80–120","90–110","95–105","70–130"],a:"90–110"},
-{q:"Mean=50 SD=5 → 2 SD range?",options:["45–55","40–60","30–70","35–65"],a:"40–60"},
-{q:"Empirical rule applies to what distribution?",options:["Uniform","Normal","Random","Linear"],a:"Normal"},
-{q:"Percent beyond 2 SD on one side?",options:["10%","5%","2.5%","1%"],a:"2.5%"},
-{q:"Where is mean in normal distribution?",options:["Left","Right","Center","Top"],a:"Center"},
-{q:"Percent beyond 3 SD total?",options:["1%","0.3%","5%","10%"],a:"0.3%"},
-{q:"Shape of normal distribution?",options:["Square","Bell","Triangle","Flat"],a:"Bell"}
-];
-
-/* JUMPS */
-const jumps=[
-{name:"Single Axel",type:"axel",rot:1},
-{name:"Double Lutz",type:"toe",rot:2},
-{name:"Triple Salchow",type:"edge",rot:3},
-{name:"Double Loop",type:"edge",rot:2},
-{name:"Triple Flip",type:"toe",rot:3},
-{name:"Double Toe Loop",type:"toe",rot:2},
-{name:"Triple Lutz",type:"toe",rot:3},
-{name:"Single Loop",type:"edge",rot:1},
-{name:"Double Axel",type:"axel",rot:2},
-{name:"Triple Toe Loop",type:"toe",rot:3}
-];
-
-/* GAME STATE */
-let index=0,score=0,misses=0,state="skating";
-
-/* SKATER */
-let skater={
-x:120,y:350,vx:0,vy:0,rotation:0,frame:0,pose:"glide",dressFlow:0
-};
-
-let sparkles=[],trails=[],confetti=[];
-
-/* ARENA */
-function drawArena(){
-let g=ctx.createLinearGradient(0,0,0,500);
-g.addColorStop(0,"#e8faff");g.addColorStop(1,"#ffffff");
-ctx.fillStyle=g;ctx.fillRect(0,0,900,500);
-
-ctx.fillStyle="white";ctx.fillRect(0,320,900,80);
-ctx.fillStyle="#ff0000";ctx.fillRect(0,320,900,5);
-
-let cg=ctx.createLinearGradient(0,0,0,150);
-cg.addColorStop(0,"#222");cg.addColorStop(1,"#555");
-ctx.fillStyle=cg;ctx.fillRect(0,0,900,150);
-
-for(let r=0;r<5;r++){
-for(let i=0;i<60;i++){
-ctx.fillStyle=`hsl(${Math.random()*360},50%,60%)`;
-ctx.beginPath();ctx.arc(i*15+5,r*20+30,4,0,Math.PI*2);ctx.fill();
-}}
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
+resize();
+window.addEventListener("resize", resize);
 
-/* SKATER */
-function drawSkater(){
-ctx.save();
-ctx.translate(skater.x,skater.y);
-ctx.rotate(skater.rotation);
+/////////////////////////////
+// REALISTIC SKATER SPRITE
+/////////////////////////////
 
-trails.push({x:skater.x,y:skater.y,life:20});
+const skaterImg = new Image();
 
-/* legs */
-ctx.strokeStyle="black";ctx.lineWidth=4;
-ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(-10,25);
-ctx.moveTo(6,0);ctx.lineTo(10,25);ctx.stroke();
+/*
+Upload a realistic figure skating sprite sheet to GitHub
+Name it: skater.png
+Format: 8 frames across, full body skater
+*/
+skaterImg.src = "skater.png";
 
-/* dress */
-ctx.fillStyle="#ff4fd8";
-ctx.beginPath();
-ctx.moveTo(-12,-40);ctx.lineTo(12,-40);ctx.lineTo(8,0);ctx.lineTo(-8,0);ctx.fill();
+let frame = 0;
+const totalFrames = 8;
+const frameWidth = 256;
+const frameHeight = 256;
 
-/* flowing skirt */
-skater.dressFlow+=0.2;
-let flow=Math.sin(skater.dressFlow)*10;
-ctx.beginPath();
-ctx.moveTo(-8,0);
-ctx.quadraticCurveTo(-20-flow,8,0,12);
-ctx.quadraticCurveTo(20+flow,8,8,0);
-ctx.fill();
+/////////////////////////////
+// PHYSICS (REALISTIC JUMP ARC)
+/////////////////////////////
 
-/* sparkles */
-for(let i=0;i<6;i++){
-ctx.fillStyle="white";
-ctx.fillRect(Math.random()*20-10,-35+Math.random()*35,2,2);
-}
+let x = canvas.width/2;
+let y = canvas.height*0.8;
 
-/* head */
-ctx.fillStyle="#ffd6b0";
-ctx.beginPath();ctx.arc(0,-50,9,0,Math.PI*2);ctx.fill();
+let vy = 0;
+let jumping = false;
+let gravity = 0.6;
+let rotation = 0;
+let forwardSpeed = 4;
 
-sparkles.push({x:skater.x,y:skater.y+20,life:15});
-ctx.restore();
-}
-
-/* PARTICLES */
-function drawParticles(){
-sparkles.forEach(p=>{ctx.fillStyle="white";ctx.fillRect(p.x,p.y,2,2);p.life--});
-sparkles=sparkles.filter(p=>p.life>0);
-}
-
-/* CONFETTI */
-function launchConfetti(){
-for(let i=0;i<200;i++){
-confetti.push({x:Math.random()*900,y:-20,color:`hsl(${Math.random()*360},70%,60%)`});
-}
-}
-
-/* JUMP */
-function triggerJump(){
-let j=jumps[index];
-state="jump";
-
-if(j.type==="axel") skater.vx=5;
-else if(j.type==="toe") skater.vx=4;
-else skater.vx=3;
-
-skater.vy=-14;
-}
-
-/* QUESTION POPUP */
-function askQuestion(){
-state="paused";
-const q=questions[index];
-
-document.getElementById("jumpTitle").innerText=jumps[index].name;
-document.getElementById("questionText").innerText=q.q;
-
-const container=document.getElementById("answers");
-container.innerHTML="";
-
-q.options.forEach(opt=>{
-let btn=document.createElement("button");
-btn.className="answerBtn";
-btn.innerText=opt;
-btn.onclick=()=>submitAnswer(opt,q.a);
-container.appendChild(btn);
+document.addEventListener("keydown", e=>{
+  if(e.code==="Space" && !jumping){
+    startJump();
+  }
 });
 
-document.getElementById("questionBox").style.display="flex";
+function startJump(){
+  jumping = true;
+  vy = -18;
+  rotation = 0;
 }
 
-function submitAnswer(choice,correct){
-if(choice.toLowerCase()==correct.toLowerCase()){
-score+=10;cheer.play();
-}else{misses++;gasp.play();}
-document.getElementById("questionBox").style.display="none";
-index++;state="skating";
+/////////////////////////////
+// DRAW SHADOW FOR DEPTH
+/////////////////////////////
+
+function drawShadow(){
+  ctx.beginPath();
+  ctx.ellipse(x, canvas.height*0.83, 80, 20, 0, 0, Math.PI*2);
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.fill();
 }
 
-/* FINAL SPIN */
-let spin=0;
-function finalSpin(){
-spin+=0.2;skater.rotation=spin;
+/////////////////////////////
+// DRAW SKATER
+/////////////////////////////
+
+function drawSkater(){
+  ctx.save();
+  ctx.translate(x, y);
+
+  if(jumping){
+    // upright figure skating rotation
+    ctx.rotate(rotation*Math.PI/180);
+  }
+
+  const scale = 1.6;
+
+  ctx.drawImage(
+    skaterImg,
+    frame*frameWidth,0,
+    frameWidth,frameHeight,
+    -frameWidth/2*scale,
+    -frameHeight*scale,
+    frameWidth*scale,
+    frameHeight*scale
+  );
+
+  ctx.restore();
 }
 
-/* END */
-function endProgram(){
-state="finished";
-programMusic.pause();
-medalMusic.play();
+/////////////////////////////
+// UPDATE
+/////////////////////////////
 
-let medal="Gold";
-if(misses==1) medal="Silver";
-if(misses==2) medal="Bronze";
-if(misses>=3) medal="Lost";
-
-if(medal==="Gold") launchConfetti();
-
-document.getElementById("endingScreen").style.display="flex";
-document.getElementById("resultText").innerHTML=
-medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
-
-document.getElementById("finalScore").innerHTML=
-"Final Score: "+score+"<br>Missed: "+misses+" / 10";
-}
-
-/* GAME LOOP */
 function update(){
-drawArena();
 
-if(state==="skating"){
-skater.x+=2;
-if(skater.x>700){
-if(index<10) triggerJump();
-else state="spin";
-}
-}
+  if(jumping){
+    vy += gravity;
+    y += vy;
+    x += forwardSpeed;
 
-if(state==="jump"){
-skater.x+=skater.vx;
-skater.y+=skater.vy;
-skater.vy+=0.7;
-skater.rotation+=0.3*jumps[index].rot;
+    rotation += 12;
 
-if(skater.y>=350){
-skater.y=350;
-skater.x=120;
-skater.rotation=0;
-askQuestion();
-}
+    if(y >= canvas.height*0.8){
+      y = canvas.height*0.8;
+      jumping=false;
+      x = canvas.width/2;
+    }
+  }
+
+  // animate sprite frames
+  frame = (frame+1)%totalFrames;
 }
 
-if(state==="spin"){
-finalSpin();
-setTimeout(endProgram,3000);
-state="waiting";
+/////////////////////////////
+// RENDER
+/////////////////////////////
+
+function draw(){
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  drawShadow();
+  drawSkater();
 }
 
-drawSkater();
-drawParticles();
+/////////////////////////////
+// GAME LOOP
+/////////////////////////////
 
-ctx.fillStyle="black";
-ctx.fillText("Score: "+score,20,20);
-ctx.fillText("Jump "+(index+1)+" / 10",20,40);
-
-requestAnimationFrame(update);
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
 }
 
-/* START */
-programMusic.play();
-update();
+loop();
 </script>
 
 </body>
