@@ -1,118 +1,340 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Study Streak Game</title>
+<meta charset="UTF-8">
+<title>Olympic Figure Skating Study Game</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  background: #f5f7fb;
-  margin-top: 50px;
+body{
+  margin:0;
+  background:#0a2340;
+  color:white;
+  font-family:Arial;
+  text-align:center;
 }
 
-.container {
-  background: white;
-  width: 400px;
-  margin: auto;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+canvas{
+  background:linear-gradient(#cfefff,#ffffff);
+  display:block;
+  margin:auto;
+  border:4px solid white;
 }
 
-button {
-  padding: 10px 20px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 8px;
-  background: #4CAF50;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
+button{
+  padding:12px 20px;
+  font-size:18px;
+  margin-top:15px;
+  cursor:pointer;
 }
 
-button:hover {
-  background: #45a049;
+/* ending screen */
+#endingScreen{
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  display:none;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  background:rgba(0,0,40,0.9);
 }
 
-input {
-  padding: 10px;
-  width: 80%;
-  margin-top: 10px;
-}
-
-.score {
-  font-size: 18px;
-  margin-top: 15px;
-}
-
-.feedback {
-  font-weight: bold;
-  margin-top: 10px;
+.big{
+  font-size:50px;
+  margin:10px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <h1>📚 Study Streak</h1>
+<h1>Olympic Figure Skating Study Game</h1>
+<canvas id="game" width="900" height="500"></canvas>
 
-  <h3 id="question">Press Start</h3>
-
-  <input id="answerInput" placeholder="Type answer here" />
-
-  <br>
-  <button onclick="checkAnswer()">Submit</button>
-  <button onclick="nextQuestion()">Next</button>
-
-  <div class="feedback" id="feedback"></div>
-
-  <div class="score">
-    Score: <span id="score">0</span> |
-    Streak: <span id="streak">0</span>
-  </div>
+<div id="endingScreen">
+  <div id="resultText" class="big"></div>
+  <div id="finalScore"></div>
+  <button onclick="location.reload()">Play Again</button>
 </div>
 
 <script>
-// ===== EDIT YOUR STUDY QUESTIONS HERE =====
-const questions = [
-  { q: "Capital of France?", a: "paris" },
-  { q: "5 + 7 =", a: "12" },
-  { q: "Largest planet?", a: "jupiter" },
-  { q: "Speed of light unit?", a: "m/s" }
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+/* ---------- AUDIO ---------- */
+
+// soft program music
+const programMusic=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_115b9bce9f.mp3");
+programMusic.loop=true;
+programMusic.volume=.3;
+
+// crowd reactions
+const cheer=new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
+const gasp=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
+
+// medal ceremony music
+const medalMusic=new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
+
+/* ---------- QUESTIONS (Empirical Rule) ---------- */
+
+const questions=[
+{q:"In a normal distribution, about what percent of data falls within 1 standard deviation?",a:"68"},
+{q:"About what percent falls within 2 standard deviations?",a:"95"},
+{q:"About what percent falls within 3 standard deviations?",a:"99.7"},
+{q:"If mean=100 and SD=10, range for 1 SD?",a:"90-110"},
+{q:"If mean=50 and SD=5, range for 2 SD?",a:"40-60"},
+{q:"Empirical rule applies to what distribution shape?",a:"normal"},
+{q:"Percent beyond 2 SD on one side?",a:"2.5"},
+{q:"Mean location in normal distribution?",a:"center"},
+{q:"Total percent beyond 3 SD?",a:"0.3"},
+{q:"What is another name for normal distribution?",a:"bell"}
 ];
-// ==========================================
 
-let currentQuestion = {};
-let score = 0;
-let streak = 0;
+/* ---------- REAL JUMPS ---------- */
 
-function nextQuestion() {
-  currentQuestion = questions[Math.floor(Math.random() * questions.length)];
-  document.getElementById("question").textContent = currentQuestion.q;
-  document.getElementById("answerInput").value = "";
-  document.getElementById("feedback").textContent = "";
+const jumps=[
+"Single Axel","Double Lutz","Triple Salchow",
+"Double Loop","Triple Flip","Double Toe Loop",
+"Triple Lutz","Single Loop","Double Axel","Triple Toe"
+];
+
+/* ---------- GAME STATE ---------- */
+
+let index=0;
+let score=0;
+let misses=0;
+let state="skating"; // skating, jump, spin, finished
+
+/* ---------- SKATER ---------- */
+
+let skater={
+x:100,
+y:360,
+vy:0,
+jumping:false,
+frame:0,
+costumeColor:"#ff4de3"
+};
+
+/* ---------- PARTICLES ---------- */
+
+let sparkles=[];
+let trails=[];
+let confetti=[];
+
+/* ---------- DRAW RINK ---------- */
+
+function drawBackground(){
+  ctx.fillStyle="#dff6ff";
+  ctx.fillRect(0,0,900,500);
+
+  // rink border
+  ctx.strokeStyle="#0066cc";
+  ctx.lineWidth=6;
+  ctx.strokeRect(0,0,900,500);
+
+  // crowd
+  for(let i=0;i<50;i++){
+    ctx.fillStyle=`hsl(${i*7},70%,60%)`;
+    ctx.fillRect(i*18,20,10,20);
+  }
 }
 
-function checkAnswer() {
-  const userAnswer = document.getElementById("answerInput").value.toLowerCase().trim();
+/* ---------- SKATER SPRITE ---------- */
 
-  if (userAnswer === currentQuestion.a) {
-    score++;
-    streak++;
-    document.getElementById("feedback").textContent = "✅ Correct!";
-  } else {
-    streak = 0;
-    document.getElementById("feedback").textContent =
-      "❌ Wrong — answer: " + currentQuestion.a;
+function drawSkater(){
+  ctx.save();
+  ctx.translate(skater.x,skater.y);
+
+  // skate trail
+  trails.push({x:skater.x,y:skater.y,life:20});
+
+  // body
+  ctx.fillStyle=skater.costumeColor;
+  ctx.fillRect(-10,-40,20,40);
+
+  // head
+  ctx.fillStyle="#ffe0bd";
+  ctx.beginPath();
+  ctx.arc(0,-50,8,0,Math.PI*2);
+  ctx.fill();
+
+  // legs
+  ctx.strokeStyle="black";
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  ctx.moveTo(-5,0);
+  ctx.lineTo(-10,20);
+  ctx.moveTo(5,0);
+  ctx.lineTo(10,20);
+  ctx.stroke();
+
+  // arms animate
+  ctx.beginPath();
+  ctx.moveTo(0,-30);
+  ctx.lineTo(20*Math.sin(skater.frame/5),-20);
+  ctx.moveTo(0,-30);
+  ctx.lineTo(-20*Math.sin(skater.frame/5),-20);
+  ctx.stroke();
+
+  // sparkle effects
+  sparkles.push({
+    x:skater.x+Math.random()*10-5,
+    y:skater.y+20,
+    life:15
+  });
+
+  ctx.restore();
+}
+
+/* ---------- PARTICLE EFFECTS ---------- */
+
+function drawParticles(){
+
+  sparkles.forEach(p=>{
+    ctx.fillStyle="white";
+    ctx.fillRect(p.x,p.y,2,2);
+    p.life--;
+  });
+  sparkles=sparkles.filter(p=>p.life>0);
+
+  trails.forEach(t=>{
+    ctx.fillStyle="rgba(200,240,255,.3)";
+    ctx.fillRect(t.x-5,t.y+20,10,3);
+    t.life--;
+  });
+  trails=trails.filter(t=>t.life>0);
+
+  confetti.forEach(c=>{
+    ctx.fillStyle=c.color;
+    ctx.fillRect(c.x,c.y,6,6);
+    c.y+=3;
+  });
+}
+
+/* ---------- CONFETTI ---------- */
+
+function launchConfetti(){
+  for(let i=0;i<200;i++){
+    confetti.push({
+      x:Math.random()*900,
+      y:-20,
+      color:`hsl(${Math.random()*360},70%,60%)`
+    });
+  }
+}
+
+/* ---------- JUMP ---------- */
+
+function triggerJump(){
+  state="jump";
+  skater.jumping=true;
+  skater.vy=-12;
+}
+
+function askQuestion(){
+  const q=questions[index];
+  const ans=prompt(q.q);
+
+  if(ans && ans.toLowerCase()==q.a.toLowerCase()){
+    score+=10;
+    cheer.play();
+  }else{
+    misses++;
+    gasp.play();
+  }
+}
+
+/* ---------- FINAL SPIN ---------- */
+
+let spinAngle=0;
+function finalSpin(){
+  spinAngle+=.2;
+  ctx.save();
+  ctx.translate(skater.x,skater.y);
+  ctx.rotate(spinAngle);
+  ctx.fillStyle=skater.costumeColor;
+  ctx.fillRect(-10,-40,20,40);
+  ctx.restore();
+}
+
+/* ---------- ENDING ---------- */
+
+function endProgram(){
+  state="finished";
+  programMusic.pause();
+  medalMusic.play();
+
+  let medal="Gold";
+  if(misses==1) medal="Silver";
+  if(misses==2) medal="Bronze";
+  if(misses>=3) medal="Lost";
+
+  if(medal==="Gold") launchConfetti();
+
+  document.getElementById("endingScreen").style.display="flex";
+
+  document.getElementById("resultText").innerHTML=
+    medal==="Lost"
+    ? "YOU LOST"
+    : medal+" Medal 🏅";
+
+  document.getElementById("finalScore").innerHTML=
+    "Final Score: "+score+"<br>Missed: "+misses+" / 10";
+}
+
+/* ---------- GAME LOOP ---------- */
+
+function update(){
+  drawBackground();
+
+  if(state==="skating"){
+    skater.x+=2;
+    skater.frame++;
+
+    if(skater.x>700){
+      if(index<jumps.length){
+        triggerJump();
+      }else{
+        state="spin";
+      }
+    }
   }
 
-  document.getElementById("score").textContent = score;
-  document.getElementById("streak").textContent = streak;
+  if(state==="jump"){
+    skater.y+=skater.vy;
+    skater.vy+=.5;
+
+    if(skater.y>=360){
+      skater.y=360;
+      skater.x=100;
+      askQuestion();
+      index++;
+      state="skating";
+    }
+  }
+
+  if(state==="spin"){
+    finalSpin();
+    setTimeout(endProgram,3000);
+    state="waiting";
+  }
+
+  drawSkater();
+  drawParticles();
+
+  ctx.fillStyle="black";
+  ctx.fillText("Score: "+score,20,20);
+  ctx.fillText("Jump "+(index+1)+" / 10",20,40);
+
+  requestAnimationFrame(update);
 }
 
-nextQuestion();
+/* ---------- START ---------- */
+programMusic.play();
+update();
 </script>
 
 </body>
