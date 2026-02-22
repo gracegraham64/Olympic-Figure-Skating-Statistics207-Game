@@ -68,8 +68,8 @@ const jumps=["Single Axel","Double Lutz","Triple Salchow","Double Loop","Triple 
 let score=0, misses=0, index=0;
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
-let skater={x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,rotation:0};
-let inAir=false,showingQuestion=false;
+let skater={x:450,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,rotation:0};
+let inAir=false, showingQuestion=false, landingCorrect=false;
 
 //--------- ARENA ---------
 function drawArena(){
@@ -106,13 +106,16 @@ function drawSkater(){
 //--------- JUMP & QUESTION ---------
 function triggerJump(){
   if(!inAir && index<10){
-    skater.vy=-12; inAir=true; showQuestion();
+    skater.vy=-15; // jump higher
+    inAir=true;
+    showingQuestion=false;
   }
 }
 
 function showQuestion(){
   if(showingQuestion) return;
   showingQuestion=true;
+  skater.vy=0; // freeze in mid-air
   const container=document.getElementById("questionContainer");
   const qText=document.getElementById("questionText");
   const answersDiv=document.getElementById("answers");
@@ -120,15 +123,14 @@ function showQuestion(){
   const q=questions[index];
   qText.innerText=jumps[index]+": "+q.q;
   answersDiv.innerHTML="";
-  skater.vy=0; // freeze mid-air
   q.options.forEach(opt=>{
     const btn=document.createElement("button");
     btn.innerText=opt;
     btn.onclick=()=>{
       container.style.display="none";
       showingQuestion=false;
-      if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); skater.rotation=0; skater.vy=5; }
-      else{ misses++; aww.play(); skater.rotation=Math.PI/2; skater.vy=5; }
+      if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); landingCorrect=true; skater.vy=5; skater.rotation=0; }
+      else{ misses++; aww.play(); landingCorrect=false; skater.vy=5; skater.rotation=Math.PI/2; }
       index++;
       if(index>=10){ setTimeout(endGame,1000); }
     };
@@ -150,16 +152,31 @@ function endGame(){
 function update(){
   ctx.clearRect(0,0,900,500);
   drawArena();
-  if(!showingQuestion && !inAir){
+
+  // horizontal movement
+  if(!inAir && !showingQuestion){
     skater.x+=2*skater.direction;
-    if(skater.x<50) skater.direction=1; if(skater.x>850) skater.direction=-1;
-    // random jump every 150 frames
-    if(Math.random()<0.02) triggerJump();
+    if(skater.x<50) skater.direction=1;
+    if(skater.x>850) skater.direction=-1;
+    // trigger jump after reaching middle of canvas
+    if(skater.x>200 && skater.x<700){ triggerJump(); }
   }
+
+  // vertical jump physics
   if(inAir){
-    skater.y+=skater.vy; skater.vy+=0.5;
-    if(skater.y>=350){ skater.y=350; skater.vy=0; inAir=false; }
+    skater.y+=skater.vy;
+    skater.vy+=0.5;
+    // peak of jump → show question
+    if(skater.vy>=0 && !showingQuestion){ showQuestion(); }
+    // landing
+    if(skater.y>=350){
+      skater.y=350;
+      skater.vy=0;
+      inAir=false;
+      if(landingCorrect===false){ skater.rotation=Math.PI/2; } else{ skater.rotation=0; }
+    }
   }
+
   skater.frame++;
   drawSkater();
   requestAnimationFrame(update);
