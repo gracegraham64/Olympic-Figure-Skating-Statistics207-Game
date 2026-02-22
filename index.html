@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Study Streak Game</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f5f7fb;
+  margin-top: 50px;
+}
+
+.container {
+  background: white;
+  width: 400px;
+  margin: auto;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #4CAF50;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #45a049;
+}
+
+input {
+  padding: 10px;
+  width: 80%;
+  margin-top: 10px;
+}
+
+.score {
+  font-size: 18px;
+  margin-top: 15px;
+}
+
+.feedback {
+  font-weight: bold;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>📚 Study Streak</h1>
+
+  <h3 id="question">Press Start</h3>
+
+  <input id="answerInput" placeholder="Type answer here" />
+
+  <br>
+  <button onclick="checkAnswer()">Submit</button>
+  <button onclick="nextQuestion()">Next</button>
+
+  <div class="feedback" id="feedback"></div>
+
+  <div class="score">
+    Score: <span id="score">0</span> |
+    Streak: <span id="streak">0</span>
+  </div>
+</div>
+
+<script>
+// ===== EDIT YOUR STUDY QUESTIONS HERE =====
+const questions = [
+  { q: "Capital of France?", a: "paris" },
+  { q: "5 + 7 =", a: "12" },
+  { q: "Largest planet?", a: "jupiter" },
+  { q: "Speed of light unit?", a: "m/s" }
+];
+// ==========================================
+
+let currentQuestion = {};
+let score = 0;
+let streak = 0;
+
+function nextQuestion() {
+  currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+  document.getElementById("question").textContent = currentQuestion.q;
+  document.getElementById("answerInput").value = "";
+  document.getElementById("feedback").textContent = "";
+}
+
+function checkAnswer() {
+  const userAnswer = document.getElementById("answerInput").value.toLowerCase().trim();
+
+  if (userAnswer === currentQuestion.a) {
+    score++;
+    streak++;
+    document.getElementById("feedback").textContent = "✅ Correct!";
+  } else {
+    streak = 0;
+    document.getElementById("feedback").textContent =
+      "❌ Wrong — answer: " + currentQuestion.a;
+  }
+
+  document.getElementById("score").textContent = score;
+  document.getElementById("streak").textContent = streak;
+}
+
+nextQuestion();
+</script>
+
+</body>
+</html>
