@@ -22,7 +22,7 @@ button{padding:12px 20px;font-size:18px;margin:5px;cursor:pointer;}
 </head>
 <body>
 
-<h1>Olympic Figure Skating Study Game</h1>
+<h1>Figure Skating Study Game</h1>
 
 <div id="startScreen">
   <button id="startButton">Start Game</button>
@@ -71,7 +71,8 @@ const ctx=canvas.getContext("2d");
 let skater={x:450,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,rotation:0};
 let jumpPhase="ground"; // "ground" -> "up" -> "pause" -> "down"
 let awaitingAnswer=false;
-const jumpHeight=200; // mid-air height
+const jumpHeight=200; 
+let waitAfterLanding=0;
 
 // ARENA
 function drawArena(){
@@ -108,15 +109,12 @@ function drawSkater(){
 // JUMP & QUESTION
 function startJump(){
   if(jumpPhase==="ground" && index<10){
-    jumpPhase="up";
-    skater.vy=-12;
+    jumpPhase="up"; skater.vy=-12;
   }
 }
 
 function showQuestion(){
-  awaitingAnswer=true;
-  jumpPhase="pause"; // freeze mid-air
-  skater.vy=0;
+  awaitingAnswer=true; jumpPhase="pause"; skater.vy=0;
   const container=document.getElementById("questionContainer");
   const qText=document.getElementById("questionText");
   const answersDiv=document.getElementById("answers");
@@ -130,10 +128,11 @@ function showQuestion(){
     btn.onclick=()=>{
       container.style.display="none";
       awaitingAnswer=false;
-      if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); jumpPhase="down"; skater.rotation=0; skater.vy=5; }
-      else{ misses++; aww.play(); jumpPhase="down"; skater.rotation=Math.PI/2; skater.vy=5; }
+      if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); skater.rotation=0; jumpPhase="down"; skater.vy=5; }
+      else{ misses++; aww.play(); skater.rotation=Math.PI/2; jumpPhase="down"; skater.vy=5; }
       index++;
       if(index>=10){ setTimeout(endGame,1000); }
+      else{ waitAfterLanding=60 + Math.floor(Math.random()*120); } // 1-3 sec wait
     };
     answersDiv.appendChild(btn);
   });
@@ -154,12 +153,14 @@ function update(){
   ctx.clearRect(0,0,900,500);
   drawArena();
 
-  // horizontal movement only on ground
-  if(jumpPhase==="ground"){ 
-    skater.x+=2*skater.direction; 
+  // horizontal movement
+  if(jumpPhase==="ground" && waitAfterLanding>0){ 
+    waitAfterLanding--; 
+    skater.x+=2*skater.direction;
     if(skater.x<50) skater.direction=1; 
     if(skater.x>850) skater.direction=-1;
-    if(skater.x>200 && skater.x<700){ startJump(); }
+  } else if(jumpPhase==="ground" && waitAfterLanding===0){
+    startJump();
   }
 
   // vertical jump
