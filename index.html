@@ -2,47 +2,43 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Olympic Figure Skating Program</title>
+<title>Figure Skating Empirical Rule Program</title>
 
 <style>
 body{
 margin:0;
 overflow:hidden;
-background:black;
 font-family:Arial;
+background:black;
 }
 
-/* rink canvas */
+/* rink */
 #rink{
 position:absolute;
 width:100vw;
 height:100vh;
 }
 
-/* realistic skater */
+/* skater */
 #skater{
 position:absolute;
 bottom:120px;
 left:50%;
 transform:translateX(-50%);
 width:90px;
-height:200px;
-transition:all 1.2s ease;
+transition:all 1s ease;
 }
 
-/* jump */
+/* skating flow states */
+.prepare{ transform:translate(-50%,0) skewX(-10deg); }
 .jump{ transform:translate(-50%,-260px); }
-
-/* land */
 .land{ transform:translate(-50%,0); }
-
-/* fall */
 .fall{
 transform:translate(-50%,0) rotate(90deg);
 transform-origin:bottom center;
 }
 
-/* question box */
+/* question */
 #questionBox{
 position:absolute;
 top:20px;
@@ -52,20 +48,25 @@ background:white;
 padding:20px;
 border-radius:12px;
 display:none;
+max-width:500px;
 text-align:center;
 }
 
-/* start button */
+button{
+padding:10px 18px;
+margin:6px;
+font-size:16px;
+}
+
 #start{
 position:absolute;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
-font-size:30px;
+font-size:28px;
 padding:20px 40px;
 }
 
-/* end screen */
 #endScreen{
 position:absolute;
 top:40%;
@@ -84,43 +85,44 @@ display:none;
 
 <button id="start" onclick="startGame()">Start Program</button>
 
-<!-- realistic human skater silhouette -->
-<div id="skater">
-<svg viewBox="0 0 120 260">
+<!-- single intact human silhouette -->
+<img id="skater"
+src="data:image/svg+xml;utf8,
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 260'>
+<path fill='black'
+d='M50 10
+C45 10 38 20 38 28
+C38 38 45 42 50 42
+C55 42 62 38 62 28
+C62 20 55 10 50 10
 
-<!-- head -->
-<circle cx="60" cy="25" r="14" fill="#111"/>
+M45 42
+C40 70 40 95 42 120
+L30 160
+L38 165
+L50 130
+L62 165
+L70 160
+L58 120
+C60 95 60 70 55 42 Z
 
-<!-- torso -->
-<path d="M50 40 Q60 80 55 130 Q65 130 70 40 Z" fill="#111"/>
+M30 60 L15 90 L25 95 L38 70 Z
+M70 60 L85 90 L75 95 L62 70 Z
 
-<!-- skating dress -->
-<path d="M45 90 Q60 120 75 90 L85 140 Q60 155 35 140 Z" fill="#111"/>
+M42 120 L40 210 L48 210 L50 150 Z
+M58 120 L60 210 L52 210 L50 150 Z
 
-<!-- arms -->
-<path d="M50 60 Q20 85 30 95 Q55 80 55 70 Z" fill="#111"/>
-<path d="M70 60 Q100 85 90 95 Q65 80 65 70 Z" fill="#111"/>
-
-<!-- legs -->
-<path d="M55 130 Q45 200 50 240 L60 240 Q65 200 65 130 Z" fill="#111"/>
-<path d="M65 130 Q80 200 85 240 L75 240 Q70 200 60 130 Z" fill="#111"/>
-
-<!-- skate blade -->
-<rect x="45" y="240" width="50" height="4" fill="#ddd"/>
-
-</svg>
-</div>
+M35 210 L65 210 L65 215 L35 215 Z'/>
+</svg>">
 
 <div id="questionBox">
 <div id="question"></div>
-<br>
-<button onclick="answer(true)">Correct</button>
-<button onclick="answer(false)">Wrong</button>
+<div id="answers"></div>
 </div>
 
 <div id="endScreen"></div>
 
-<!-- sounds -->
+<!-- audio -->
 <audio id="programMusic" loop
 src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5bbd4e5d6c.mp3"></audio>
 
@@ -135,9 +137,7 @@ src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_2bcdba5a2f.mp3"></a
 
 <script>
 
-/* ---------- AI-STYLE RINK GENERATION ---------- */
-/* draws a realistic Olympic ice arena */
-
+/* ---------- REALISTIC RINK ---------- */
 const canvas=document.getElementById("rink");
 const ctx=canvas.getContext("2d");
 
@@ -151,77 +151,132 @@ resize();
 
 function drawRink(){
 
-// crowd stands gradient
-let grad=ctx.createLinearGradient(0,0,0,canvas.height);
-grad.addColorStop(0,"#222");
-grad.addColorStop(.4,"#444");
-grad.addColorStop(.6,"#eee");
-grad.addColorStop(1,"#dff3ff");
-ctx.fillStyle=grad;
+// crowd stands
+let g=ctx.createLinearGradient(0,0,0,canvas.height);
+g.addColorStop(0,"#1a1a1a");
+g.addColorStop(.4,"#444");
+g.addColorStop(.5,"#ffffff");
+g.addColorStop(1,"#dff3ff");
+ctx.fillStyle=g;
 ctx.fillRect(0,0,canvas.width,canvas.height);
 
-// crowd noise texture
-for(let i=0;i<4000;i++){
+// crowd texture
+for(let i=0;i<5000;i++){
 ctx.fillStyle=`rgba(0,0,0,${Math.random()*.3})`;
 ctx.fillRect(Math.random()*canvas.width,Math.random()*canvas.height*.4,2,2);
 }
 
 // rink boards
 ctx.fillStyle="white";
-ctx.fillRect(0,canvas.height*.45,canvas.width,20);
+ctx.fillRect(0,canvas.height*.45,canvas.width,15);
 
-// ice surface gradient
-let ice=ctx.createLinearGradient(0,canvas.height*.5,0,canvas.height);
+// ice surface
+let ice=ctx.createLinearGradient(0,canvas.height*.45,0,canvas.height);
 ice.addColorStop(0,"#f7fbff");
 ice.addColorStop(1,"#cfe9ff");
 ctx.fillStyle=ice;
-ctx.fillRect(0,canvas.height*.5,canvas.width,canvas.height);
+ctx.fillRect(0,canvas.height*.45,canvas.width,canvas.height);
 
-// skate scratch lines
-for(let i=0;i<200;i++){
-ctx.strokeStyle="rgba(180,200,255,.15)";
+// skate marks
+for(let i=0;i<300;i++){
+ctx.strokeStyle="rgba(180,200,255,.2)";
 ctx.beginPath();
-ctx.moveTo(Math.random()*canvas.width,canvas.height*.5+Math.random()*canvas.height*.5);
-ctx.lineTo(Math.random()*canvas.width,canvas.height*.5+Math.random()*canvas.height*.5);
+ctx.moveTo(Math.random()*canvas.width,canvas.height*.45+Math.random()*canvas.height);
+ctx.lineTo(Math.random()*canvas.width,canvas.height*.45+Math.random()*canvas.height);
 ctx.stroke();
 }
 }
 
-/* ---------- GAME LOGIC ---------- */
+/* ---------- EMPIRICAL RULE QUESTIONS ---------- */
+
+const questions=[
+{q:"In a normal distribution, about what percent of data lies within 1 standard deviation of the mean?",
+a:["50%","68%","95%","99.7%"],c:1},
+
+{q:"About what percent of data lies within 2 standard deviations?",
+a:["68%","75%","95%","99%"],c:2},
+
+{q:"About what percent lies within 3 standard deviations?",
+a:["90%","95%","97%","99.7%"],c:3},
+
+{q:"If the mean is 100 and SD is 10, what range covers ~68% of data?",
+a:["80–120","90–110","70–130","60–140"],c:1},
+
+{q:"If mean = 50 and SD = 5, about 95% of values fall between:",
+a:["45–55","40–60","35–65","30–70"],c:1},
+
+{q:"The empirical rule applies to what type of distribution?",
+a:["Uniform","Skewed","Normal (bell-shaped)","Random"],c:2},
+
+{q:"If a value is 3 SD above the mean, it is:",
+a:["Very common","Average","Unusual","Impossible"],c:2},
+
+{q:"What percent of data is outside ±2 SD?",
+a:["5%","32%","1%","68%"],c:0},
+
+{q:"If mean=70 and SD=8, about 99.7% falls between:",
+a:["62–78","54–86","46–94","38–102"],c:2},
+
+{q:"Empirical rule is also called:",
+a:["Z rule","68-95-99.7 rule","Central rule","Mean rule"],c:1}
+];
+
+/* ---------- GAME ---------- */
 
 const skater=document.getElementById("skater");
-const questionBox=document.getElementById("questionBox");
+const qBox=document.getElementById("questionBox");
+const qText=document.getElementById("question");
+const answersDiv=document.getElementById("answers");
+
 const programMusic=document.getElementById("programMusic");
 const medalMusic=document.getElementById("medalMusic");
 const cheer=document.getElementById("cheer");
 const sigh=document.getElementById("sigh");
 
-let q=0;
+let index=0;
 let score=0;
-const total=10;
 
 function startGame(){
 document.getElementById("start").style.display="none";
 programMusic.volume=.3;
 programMusic.play();
-startJump();
+nextJump();
 }
 
-function startJump(){
-if(q>=total){endGame();return;}
+/* jump flow */
+function nextJump(){
 
-skater.className="";
-skater.classList.add("jump");
+if(index>=questions.length){endGame();return;}
 
+// prepare edge
+skater.className="prepare";
+
+// takeoff
 setTimeout(()=>{
-questionBox.style.display="block";
-document.getElementById("question").innerText=
-"Empirical Rule Question "+(q+1);
-},1200);
+skater.className="jump";
+
+// pause in air → question appears
+setTimeout(showQuestion,900);
+},600);
+}
+
+function showQuestion(){
+qBox.style.display="block";
+
+const item=questions[index];
+qText.innerText=item.q;
+
+answersDiv.innerHTML="";
+item.a.forEach((choice,i)=>{
+let b=document.createElement("button");
+b.innerText=choice;
+b.onclick=()=>answer(i===item.c);
+answersDiv.appendChild(b);
+});
 }
 
 function answer(correct){
-questionBox.style.display="none";
+qBox.style.display="none";
 
 if(correct){
 score++;
@@ -232,8 +287,8 @@ sigh.play();
 skater.className="fall";
 }
 
-q++;
-setTimeout(startJump,2000);
+index++;
+setTimeout(nextJump,1800);
 }
 
 function endGame(){
@@ -250,6 +305,5 @@ else end.innerHTML="TRY AGAIN";
 }
 
 </script>
-
 </body>
 </html>
