@@ -42,14 +42,14 @@ button{padding:12px 20px;font-size:18px;margin:5px;cursor:pointer;}
 </div>
 
 <script>
-//--------- AUDIO ---------
+// AUDIO
 const programMusic=new Audio("https://cdn.pixabay.com/audio/2023/07/23/audio_1c3e4d8f1e.mp3");
 programMusic.loop=true; programMusic.volume=0.5;
 const cheer=new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
 const aww=new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
 const medalMusic=new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
 
-//--------- QUESTIONS ---------
+// QUESTIONS
 const questions=[
 {q:"Percent within 1 SD?",a:"68", options:["68","95","99.7","50"]},
 {q:"Percent within 2 SD?",a:"95", options:["68","95","99.7","50"]},
@@ -64,14 +64,16 @@ const questions=[
 ];
 const jumps=["Single Axel","Double Lutz","Triple Salchow","Double Loop","Triple Flip","Double Toe","Triple Lutz","Single Loop","Double Axel","Triple Toe"];
 
-//--------- GAME STATE ---------
+// GAME STATE
 let score=0, misses=0, index=0;
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 let skater={x:450,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,rotation:0};
-let inAir=false, awaitingAnswer=false, landingCorrect=false;
+let jumpPhase="ground"; // "ground" -> "up" -> "pause" -> "down"
+let awaitingAnswer=false;
+const jumpHeight=200; // mid-air height
 
-//--------- ARENA ---------
+// ARENA
 function drawArena(){
   const g=ctx.createLinearGradient(0,0,0,500); g.addColorStop(0,"#e8faff"); g.addColorStop(1,"#ffffff");
   ctx.fillStyle=g; ctx.fillRect(0,0,900,500);
@@ -87,7 +89,7 @@ function drawArena(){
   }}
 }
 
-//--------- SKATER ---------
+// SKATER
 function drawSkater(){
   ctx.save(); ctx.translate(skater.x,skater.y); ctx.rotate(skater.rotation);
   const stride=Math.sin(skater.frame/5)*8;
@@ -103,19 +105,18 @@ function drawSkater(){
   ctx.restore();
 }
 
-//--------- JUMP & QUESTION ---------
+// JUMP & QUESTION
 function startJump(){
-  if(!inAir && index<10){
-    skater.vy=-15; // jump higher
-    inAir=true; awaitingAnswer=false;
-    landingCorrect=false;
+  if(jumpPhase==="ground" && index<10){
+    jumpPhase="up";
+    skater.vy=-12;
   }
 }
 
 function showQuestion(){
-  if(awaitingAnswer) return;
   awaitingAnswer=true;
-  skater.vy=0; // freeze mid-air
+  jumpPhase="pause"; // freeze mid-air
+  skater.vy=0;
   const container=document.getElementById("questionContainer");
   const qText=document.getElementById("questionText");
   const answersDiv=document.getElementById("answers");
@@ -129,8 +130,8 @@ function showQuestion(){
     btn.onclick=()=>{
       container.style.display="none";
       awaitingAnswer=false;
-      if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); landingCorrect=true; skater.rotation=0; skater.vy=5; }
-      else{ misses++; aww.play(); landingCorrect=false; skater.rotation=Math.PI/2; skater.vy=5; }
+      if(opt.toLowerCase()===q.a.toLowerCase()){ score+=10; cheer.play(); jumpPhase="down"; skater.rotation=0; skater.vy=5; }
+      else{ misses++; aww.play(); jumpPhase="down"; skater.rotation=Math.PI/2; skater.vy=5; }
       index++;
       if(index>=10){ setTimeout(endGame,1000); }
     };
@@ -138,7 +139,7 @@ function showQuestion(){
   });
 }
 
-//--------- END GAME ---------
+// END GAME
 function endGame(){
   document.getElementById("game").style.display="none";
   document.getElementById("endingScreen").style.display="flex";
@@ -148,35 +149,26 @@ function endGame(){
   document.getElementById("finalScore").innerText=`Score: ${score}/100 | Missed: ${misses}/10`;
 }
 
-//--------- GAME LOOP ---------
+// GAME LOOP
 function update(){
   ctx.clearRect(0,0,900,500);
   drawArena();
 
-  // horizontal movement only when not in air
-  if(!inAir && !awaitingAnswer){
-    skater.x+=2*skater.direction;
-    if(skater.x<50) skater.direction=1;
+  // horizontal movement only on ground
+  if(jumpPhase==="ground"){ 
+    skater.x+=2*skater.direction; 
+    if(skater.x<50) skater.direction=1; 
     if(skater.x>850) skater.direction=-1;
-    // trigger jump once near middle
     if(skater.x>200 && skater.x<700){ startJump(); }
   }
 
-  // vertical physics
-  if(inAir){
-    skater.y+=skater.vy;
-    skater.vy+=0.5;
-
-    // pause at top to show question
-    if(skater.vy>=0 && !awaitingAnswer){ showQuestion(); }
-
-    // landing
-    if(skater.y>=350){
-      skater.y=350;
-      skater.vy=0;
-      inAir=false;
-      if(landingCorrect===false && !awaitingAnswer){ skater.rotation=Math.PI/2; } else{ skater.rotation=0; }
-    }
+  // vertical jump
+  if(jumpPhase==="up"){
+    skater.y+=skater.vy; skater.vy+=0.5;
+    if(skater.y<=jumpHeight){ showQuestion(); }
+  } else if(jumpPhase==="down"){
+    skater.y+=skater.vy; skater.vy+=0.5;
+    if(skater.y>=350){ skater.y=350; skater.vy=0; jumpPhase="ground"; skater.rotation=0; }
   }
 
   skater.frame++;
@@ -184,7 +176,7 @@ function update(){
   requestAnimationFrame(update);
 }
 
-//--------- START GAME ---------
+// START
 document.getElementById("startButton").addEventListener("click",()=>{
   document.getElementById("startScreen").style.display="none";
   canvas.style.display="block";
