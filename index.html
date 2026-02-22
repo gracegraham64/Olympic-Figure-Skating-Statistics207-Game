@@ -77,7 +77,9 @@ const mctx = medalCanvas.getContext("2d");
 
 /* AUDIO */
 const programMusic = new Audio("https://cdn.pixabay.com/audio/2023/07/23/audio_1c3e4d8f1e.mp3");
-programMusic.loop = true; programMusic.volume = 0.5;
+programMusic.loop = true;
+programMusic.volume = 0.5;
+
 const cheer = new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
 const aww = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
 const medalMusic = new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
@@ -98,14 +100,15 @@ const questions = [
 
 const jumps = ["Single Axel","Double Lutz","Triple Salchow","Double Loop","Triple Flip","Double Toe","Triple Lutz","Single Loop","Double Axel","Triple Toe"];
 
-let score = 0, misses = 0;
-let index = 0;
-let skater = {x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,targetX:700,rotation:0};
+/* GAME STATE */
+let score=0, misses=0;
+let index=0;
+let skater={x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,targetX:700,rotation:0};
 let sparkles=[], trails=[], confetti=[];
-let showingQuestion = false;
-let inAir = false;
+let showingQuestion=false;
+let inAir=false;
 
-/* ---------- DRAW ---------- */
+/* ---------- ARENA ---------- */
 function drawArena(){
   let g = ctx.createLinearGradient(0,0,0,500);
   g.addColorStop(0,"#e8faff"); g.addColorStop(1,"#ffffff");
@@ -114,7 +117,7 @@ function drawArena(){
   ctx.beginPath(); ctx.moveTo(0,250); ctx.lineTo(900,250); ctx.stroke();
   ctx.fillStyle="white"; ctx.fillRect(0,320,900,80);
   ctx.fillStyle="#ff0000"; ctx.fillRect(0,320,900,5);
-  let cg=ctx.createLinearGradient(0,0,0,150); cg.addColorStop(0,"#222"); cg.addColorStop(1,"#555");
+  let cg = ctx.createLinearGradient(0,0,0,150); cg.addColorStop(0,"#222"); cg.addColorStop(1,"#555");
   ctx.fillStyle=cg; ctx.fillRect(0,0,900,150);
   for(let r=0;r<5;r++){
     for(let i=0;i<50;i++){
@@ -124,6 +127,7 @@ function drawArena(){
   }
 }
 
+/* ---------- SKATER ---------- */
 function drawSkater(){
   ctx.save();
   ctx.translate(skater.x,skater.y);
@@ -132,18 +136,25 @@ function drawSkater(){
   ctx.strokeStyle="black"; ctx.lineWidth=4;
   ctx.beginPath();
   ctx.moveTo(-6,0); ctx.lineTo(-10,25);
-  ctx.moveTo(6,0); ctx.lineTo(10+stride,25); ctx.stroke();
-  ctx.fillStyle="silver"; ctx.fillRect(-12,25,8,3); ctx.fillRect(6+stride,25,8,3);
-  ctx.fillStyle=skater.costume; ctx.beginPath();
-  ctx.moveTo(-12,-40); ctx.lineTo(12,-40); ctx.lineTo(8,0); ctx.lineTo(-8,0); ctx.fill();
+  ctx.moveTo(6,0); ctx.lineTo(10+stride,25);
+  ctx.stroke();
+  ctx.fillStyle="silver"; ctx.fillRect(-12,25,8,3);
+  ctx.fillRect(6+stride,25,8,3);
+  ctx.fillStyle=skater.costume;
+  ctx.beginPath();
+  ctx.moveTo(-12,-40); ctx.lineTo(12,-40); ctx.lineTo(8,0); ctx.lineTo(-8,0);
+  ctx.fill();
   ctx.strokeStyle="black"; ctx.lineWidth=3;
   ctx.beginPath();
   ctx.moveTo(0,-30); ctx.lineTo(20*Math.sin(skater.frame/4),-10);
-  ctx.moveTo(0,-30); ctx.lineTo(-20*Math.sin(skater.frame/4),-10); ctx.stroke();
-  ctx.fillStyle="#ffd6b0"; ctx.beginPath(); ctx.arc(0,-50,9,0,Math.PI*2); ctx.fill();
+  ctx.moveTo(0,-30); ctx.lineTo(-20*Math.sin(skater.frame/4),-10);
+  ctx.stroke();
+  ctx.fillStyle="#ffd6b0"; ctx.beginPath();
+  ctx.arc(0,-50,9,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
+/* ---------- PARTICLES ---------- */
 function drawParticles(){
   sparkles.forEach(p=>{ctx.fillStyle="white"; ctx.fillRect(p.x,p.y,2,2); p.life--;});
   sparkles=sparkles.filter(p=>p.life>0);
@@ -152,28 +163,28 @@ function drawParticles(){
   confetti.forEach(c=>{ctx.fillStyle=c.color; ctx.fillRect(c.x,c.y,6,6); c.y+=3;});
 }
 
+/* ---------- JUMP ---------- */
 function triggerJump(){
   if(!inAir){
     skater.vy=-12-Math.random()*3;
-    skater.targetX = Math.random()*700+100;
-    skater.direction = skater.targetX>skater.x?1:-1;
+    skater.targetX=Math.random()*700+100;
+    skater.direction=skater.targetX>skater.x?1:-1;
     inAir=true;
   }
 }
 
+/* ---------- MULTIPLE CHOICE ---------- */
 function showQuestion(){
-  if(showingQuestion) return;
+  if(showingQuestion || index>=10) return;
   showingQuestion=true;
   const container=document.getElementById("questionContainer");
   const qText=document.getElementById("questionText");
   const answersDiv=document.getElementById("answers");
   container.style.display="flex";
-
   const q=questions[index];
   qText.innerText=jumps[index]+": "+q.q;
   answersDiv.innerHTML="";
-  skater.vy=0;
-
+  skater.vy=0; // freeze mid-air
   q.options.forEach(opt=>{
     const btn=document.createElement("button");
     btn.innerText=opt;
@@ -183,19 +194,20 @@ function showQuestion(){
       if(opt.toLowerCase()===q.a.toLowerCase()){
         score+=10;
         cheer.play();
-        skater.rotation=0; skater.vy=5;
+        skater.rotation=0; skater.vy=5; // land upright
       } else{
         misses++;
         aww.play();
-        skater.rotation=Math.PI/2; skater.vy=5;
+        skater.rotation=Math.PI/2; skater.vy=5; // fall sideways
       }
       index++;
-      if(index>=10) setTimeout(endGame,1000);
+      if(index>=10){setTimeout(endGame,1000);}
     };
     answersDiv.appendChild(btn);
   });
 }
 
+/* ---------- END GAME ---------- */
 function endGame(){
   canvas.style.display="none";
   document.getElementById("endingScreen").style.display="flex";
@@ -207,52 +219,49 @@ function endGame(){
   else if(misses>=3) medal="Lost";
   document.getElementById("resultText").innerText=medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
   document.getElementById("finalScore").innerText=`Final Score: ${score}/100\nMissed: ${misses}/10`;
-
   mctx.clearRect(0,0,500,500);
   mctx.fillStyle="#888"; mctx.fillRect(150,350,80,50);
   mctx.fillStyle=medal==="Gold"?"#ffd700":medal==="Silver"?"#c0c0c0":"#cd7f32";
   mctx.fillRect(250,300,80,100);
   mctx.fillStyle="#cd7f32"; mctx.fillRect(350,370,80,30);
   mctx.fillStyle=skater.costume; mctx.fillRect(250+40-12,300-40,24,40);
-  mctx.beginPath(); mctx.arc(250+40,300-60,30,0,Math.PI*2);
+  mctx.beginPath();
+  mctx.arc(250+40,300-60,30,0,Math.PI*2);
   mctx.fillStyle=medal==="Gold"?"#ffd700":medal==="Silver"?"#c0c0c0":"#cd7f32";
   mctx.fill();
   mctx.fillStyle="black"; mctx.font="20px Arial"; mctx.textAlign="center";
   mctx.fillText(medal,250+40,300-55);
 }
 
+/* ---------- GAME LOOP ---------- */
 function update(){
   ctx.clearRect(0,0,900,500);
   drawArena();
-
   if(!showingQuestion){
     skater.x+=2*skater.direction;
     if(skater.x<50) skater.direction=1;
     if(skater.x>850) skater.direction=-1;
   }
-
   if(inAir){
     skater.y+=skater.vy;
     skater.vy+=0.5;
     if(skater.y>=350){
       skater.y=350; skater.vy=0; inAir=false;
-      if(index<10) showQuestion();
+      showQuestion();
     }
   }
-
   drawSkater();
   drawParticles();
   ctx.fillStyle="black"; ctx.fillText("Score: "+score,20,20);
   ctx.fillText("Missed: "+misses,20,40);
-
   if(index<10) requestAnimationFrame(update);
 }
 
-document.getElementById("startButton").addEventListener("click", ()=>{
+/* ---------- START GAME ---------- */
+document.getElementById("startButton").addEventListener("click",()=>{
   document.getElementById("startScreen").style.display="none";
   canvas.style.display="block";
-  document.getElementById("questionContainer").style.display="flex";
-  programMusic.play().catch(()=>{}); // must be triggered by click
+  programMusic.play().catch(()=>{}); // autoplay only after click
   triggerJump();
   update();
 });
