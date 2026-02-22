@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Olympic Figure Skating Study Game</title>
-
 <style>
 body{
   margin:0;
@@ -12,40 +11,41 @@ body{
   color:white;
   text-align:center;
 }
-
 canvas{
   display:block;
   margin:auto;
   border:4px solid white;
 }
-
-#endingScreen{
+#startScreen, #endingScreen{
   position:absolute;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  display:none;
+  top:0; left:0;
+  width:100%; height:100%;
+  display:flex;
   justify-content:center;
   align-items:center;
   flex-direction:column;
-  background:rgba(0,0,40,.92);
+  background:rgba(0,0,40,0.9);
 }
-
 .big{font-size:60px;}
-button{padding:12px 20px;font-size:18px;margin-top:20px;}
+button{padding:12px 20px;font-size:18px;margin-top:20px; cursor:pointer;}
+#endingScreen img{width:150px; margin:10px;}
 </style>
 </head>
-
 <body>
 
 <h1>Olympic Figure Skating Study Game</h1>
-<canvas id="game" width="900" height="500"></canvas>
+
+<div id="startScreen">
+  <button id="startButton">Start Game</button>
+</div>
+
+<canvas id="game" width="900" height="500" style="display:none"></canvas>
 
 <div id="endingScreen">
-<div id="resultText" class="big"></div>
-<div id="finalScore"></div>
-<button onclick="location.reload()">Play Again</button>
+  <div id="resultText" class="big"></div>
+  <img id="medalImage" src="" alt="Medal">
+  <div id="finalScore"></div>
+  <button onclick="location.reload()">Play Again</button>
 </div>
 
 <script>
@@ -53,10 +53,9 @@ const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
 /* ---------- AUDIO ---------- */
-const programMusic = new Audio("https://cdn.pixabay.com/audio/2023/07/23/audio_1c3e4d8f1e.mp3"); // soft classical
+const programMusic = new Audio("https://cdn.pixabay.com/audio/2023/07/23/audio_1c3e4d8f1e.mp3");
 programMusic.loop = true;
-programMusic.volume = 0.2;
-
+programMusic.volume = 0.5; // louder
 const cheer = new Audio("https://cdn.pixabay.com/audio/2021/08/04/audio_3c92a9c73b.mp3");
 const aww = new Audio("https://cdn.pixabay.com/audio/2022/03/15/audio_ef6f29e6b7.mp3");
 const medalMusic = new Audio("https://cdn.pixabay.com/audio/2022/10/30/audio_48b1c9b95f.mp3");
@@ -83,262 +82,151 @@ const jumps=[
 ];
 
 /* ---------- GAME STATE ---------- */
-let index=0;
-let score=0;
-let misses=0;
-let state="skating";
+let index=0, score=0, misses=0, state="skating";
 
 /* ---------- SKATER ---------- */
-let skater={
-x:100,
-y:350,
-vy:0,
-frame:0,
-costume:"#ff3fd8"
-};
+let skater={x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1, targetX:700};
 
 /* ---------- EFFECTS ---------- */
-let sparkles=[];
-let trails=[];
-let confetti=[];
+let sparkles=[], trails=[], confetti=[];
 
-/* ---------- COMPETITION ARENA ---------- */
+/* ---------- ARENA ---------- */
 function drawArena(){
-  // ice gradient
+  // ice
   let g=ctx.createLinearGradient(0,0,0,500);
   g.addColorStop(0,"#e8faff");
   g.addColorStop(1,"#ffffff");
   ctx.fillStyle=g;
   ctx.fillRect(0,0,900,500);
-
-  // rink lines
-  ctx.strokeStyle="#3aa0ff";
-  ctx.lineWidth=3;
-  ctx.beginPath();
-  ctx.moveTo(0,250);
-  ctx.lineTo(900,250);
-  ctx.stroke();
-
+  // rink line
+  ctx.strokeStyle="#3aa0ff"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(0,250); ctx.lineTo(900,250); ctx.stroke();
   // boards
-  ctx.fillStyle="white";
-  ctx.fillRect(0,320,900,80);
-  ctx.fillStyle="#ff0000";
-  ctx.fillRect(0,320,900,5);
-
-  // crowd seating gradient
+  ctx.fillStyle="white"; ctx.fillRect(0,320,900,80);
+  ctx.fillStyle="#ff0000"; ctx.fillRect(0,320,900,5);
+  // audience
   let cg=ctx.createLinearGradient(0,0,0,150);
-  cg.addColorStop(0,"#222");
-  cg.addColorStop(1,"#555");
-  ctx.fillStyle=cg;
-  ctx.fillRect(0,0,900,150);
-
-  // audience rows
+  cg.addColorStop(0,"#222"); cg.addColorStop(1,"#555");
+  ctx.fillStyle=cg; ctx.fillRect(0,0,900,150);
   for(let r=0;r<5;r++){
     for(let i=0;i<50;i++){
       ctx.fillStyle=`hsl(${Math.random()*360},50%,60%)`;
-      ctx.beginPath();
-      ctx.arc(i*18+5,r*20+30,4,0,Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(i*18+5,r*20+30,4,0,Math.PI*2); ctx.fill();
     }
   }
-
   // arena lights
-  ctx.fillStyle="rgba(255,255,255,.15)";
-  ctx.fillRect(0,150,900,50);
+  ctx.fillStyle="rgba(255,255,255,.15)"; ctx.fillRect(0,150,900,50);
 }
 
-/* ---------- REALISTIC CARTOON SKATER ---------- */
+/* ---------- SKATER ---------- */
 function drawSkater(){
-  ctx.save();
-  ctx.translate(skater.x,skater.y);
-
-  // skate trail
-  trails.push({x:skater.x,y:skater.y,life:20});
-
+  ctx.save(); ctx.translate(skater.x,skater.y);
   // legs
-  ctx.strokeStyle="black";
-  ctx.lineWidth=4;
+  ctx.strokeStyle="black"; ctx.lineWidth=4;
   let stride=Math.sin(skater.frame/5)*8;
-  ctx.beginPath();
-  ctx.moveTo(-6,0);
-  ctx.lineTo(-10,25);
-  ctx.moveTo(6,0);
-  ctx.lineTo(10+stride,25);
-  ctx.stroke();
-
+  ctx.beginPath(); ctx.moveTo(-6,0); ctx.lineTo(-10,25);
+  ctx.moveTo(6,0); ctx.lineTo(10+stride,25); ctx.stroke();
   // skates
-  ctx.fillStyle="silver";
-  ctx.fillRect(-12,25,8,3);
-  ctx.fillRect(6+stride,25,8,3);
-
-  // torso costume
+  ctx.fillStyle="silver"; ctx.fillRect(-12,25,8,3); ctx.fillRect(6+stride,25,8,3);
+  // torso
   ctx.fillStyle=skater.costume;
-  ctx.beginPath();
-  ctx.moveTo(-12,-40);
-  ctx.lineTo(12,-40);
-  ctx.lineTo(8,0);
-  ctx.lineTo(-8,0);
-  ctx.fill();
-
+  ctx.beginPath(); ctx.moveTo(-12,-40); ctx.lineTo(12,-40); ctx.lineTo(8,0); ctx.lineTo(-8,0); ctx.fill();
   // arms
-  ctx.strokeStyle="black";
-  ctx.lineWidth=3;
-  ctx.beginPath();
-  ctx.moveTo(0,-30);
-  ctx.lineTo(20*Math.sin(skater.frame/4),-10);
-  ctx.moveTo(0,-30);
-  ctx.lineTo(-20*Math.sin(skater.frame/4),-10);
-  ctx.stroke();
-
+  ctx.strokeStyle="black"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(20*Math.sin(skater.frame/4),-10);
+  ctx.moveTo(0,-30); ctx.lineTo(-20*Math.sin(skater.frame/4),-10); ctx.stroke();
   // head
-  ctx.fillStyle="#ffd6b0";
-  ctx.beginPath();
-  ctx.arc(0,-50,9,0,Math.PI*2);
-  ctx.fill();
-
-  // sparkle
+  ctx.fillStyle="#ffd6b0"; ctx.beginPath(); ctx.arc(0,-50,9,0,Math.PI*2); ctx.fill();
+  // sparkles
   sparkles.push({x:skater.x+Math.random()*10-5,y:skater.y+20,life:15});
-
   ctx.restore();
 }
 
 /* ---------- PARTICLES ---------- */
 function drawParticles(){
-  sparkles.forEach(p=>{
-    ctx.fillStyle="white";
-    ctx.fillRect(p.x,p.y,2,2);
-    p.life--;
-  });
+  sparkles.forEach(p=>{ctx.fillStyle="white"; ctx.fillRect(p.x,p.y,2,2); p.life--;});
   sparkles=sparkles.filter(p=>p.life>0);
-
-  trails.forEach(t=>{
-    ctx.fillStyle="rgba(200,240,255,.3)";
-    ctx.fillRect(t.x-5,t.y+20,10,3);
-    t.life--;
-  });
+  trails.forEach(t=>{ctx.fillStyle="rgba(200,240,255,.3)"; ctx.fillRect(t.x-5,t.y+20,10,3); t.life--;});
   trails=trails.filter(t=>t.life>0);
-
-  confetti.forEach(c=>{
-    ctx.fillStyle=c.color;
-    ctx.fillRect(c.x,c.y,6,6);
-    c.y+=3;
-  });
+  confetti.forEach(c=>{ctx.fillStyle=c.color; ctx.fillRect(c.x,c.y,6,6); c.y+=3;});
 }
 
 /* ---------- CONFETTI ---------- */
 function launchConfetti(){
   for(let i=0;i<200;i++){
-    confetti.push({
-      x:Math.random()*900,
-      y:-20,
-      color:`hsl(${Math.random()*360},70%,60%)`
-    });
+    confetti.push({x:Math.random()*900,y:-20,color:`hsl(${Math.random()*360},70%,60%)`});
   }
 }
 
 /* ---------- JUMP ---------- */
 function triggerJump(){
   state="jump";
-  skater.vy=-13;
+  skater.vy=-12-Math.random()*3; // varied jump height
+  skater.targetX=Math.random()*700+100;
+  skater.direction = skater.targetX>skater.x?1:-1;
 }
 
-/* ---------- MULTIPLE CHOICE QUESTION ---------- */
+/* ---------- MULTIPLE CHOICE ---------- */
 function askQuestion(){
-  const q = questions[index];
-  let promptText = jumps[index] + "\n\n" + q.q + "\n";
-  q.options.forEach((opt,i)=> promptText += (i+1) + ". " + opt + "\n");
-
-  let ans = prompt(promptText);
+  const q=questions[index];
+  let promptText=jumps[index]+"\n\n"+q.q+"\n";
+  q.options.forEach((opt,i)=>promptText+=(i+1)+". "+opt+"\n");
+  let ans=prompt(promptText);
   if(ans){
-    let chosen = q.options[parseInt(ans)-1];
-    if(chosen && chosen.toLowerCase()===q.a.toLowerCase()){
-      score += 10;
-      cheer.play();
-    } else {
-      misses++;
-      aww.play();
-    }
-  } else {
-    misses++;
-    aww.play();
-  }
+    let chosen=q.options[parseInt(ans)-1];
+    if(chosen && chosen.toLowerCase()===q.a.toLowerCase()){score+=10; cheer.play();}
+    else{misses++; aww.play();}
+  } else{misses++; aww.play();}
 }
 
 /* ---------- FINAL SPIN ---------- */
 function finalSpin(){
-  ctx.save();
-  ctx.translate(skater.x,skater.y);
-  ctx.fillStyle=skater.costume;
-  ctx.fillRect(-12,-40,24,40);
+  ctx.save(); ctx.translate(skater.x,skater.y);
+  ctx.fillStyle=skater.costume; ctx.fillRect(-12,-40,24,40);
   ctx.restore();
 }
 
 /* ---------- END ---------- */
 function endProgram(){
-  state="finished";
-  programMusic.pause();
-  medalMusic.play();
-
-  let medal="Gold";
-  if(misses>0) medal = misses<=2 ? (misses==1?"Silver":"Bronze") : "Lost";
-
-  if(misses===0) medal="Gold";
-
-  if(medal==="Gold") launchConfetti();
-
+  state="finished"; programMusic.pause(); medalMusic.play();
+  let medal="Gold"; if(misses>0) medal = misses<=2?(misses==1?"Silver":"Bronze"):"Lost";
+  if(misses===0) medal="Gold"; if(medal==="Gold") launchConfetti();
+  const medalImg=document.getElementById("medalImage");
+  if(medal==="Gold") medalImg.src="https://upload.wikimedia.org/wikipedia/commons/4/45/Gold_medal_icon.svg";
+  else if(medal==="Silver") medalImg.src="https://upload.wikimedia.org/wikipedia/commons/1/12/Silver_medal_icon.svg";
+  else if(medal==="Bronze") medalImg.src="https://upload.wikimedia.org/wikipedia/commons/5/53/Bronze_medal_icon.svg";
+  else medalImg.src="";
+  document.getElementById("endingScreen").style.background="linear-gradient(45deg,#ffdd00,#ff5500)";
   document.getElementById("endingScreen").style.display="flex";
-  document.getElementById("resultText").innerHTML=
-    medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
-
-  document.getElementById("finalScore").innerHTML=
-    "Final Score: "+score+"<br>Missed: "+misses+" / 10";
+  document.getElementById("resultText").innerHTML=medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
+  document.getElementById("finalScore").innerHTML="Final Score: "+score+"<br>Missed: "+misses+" / 10";
 }
 
 /* ---------- GAME LOOP ---------- */
 function update(){
   drawArena();
-
   if(state==="skating"){
-    skater.x+=2;
-    skater.frame++;
-    if(skater.x>700){
-      if(index<10) triggerJump();
-      else state="spin";
-    }
+    skater.x+=2*skater.direction; skater.frame++;
+    if(Math.abs(skater.x-skater.targetX)<5){ triggerJump(); }
   }
-
   if(state==="jump"){
-    skater.y+=skater.vy;
-    skater.vy+=0.5;
-    if(skater.y>=350){
-      skater.y=350;
-      skater.x=100;
-      askQuestion();
-      index++;
-      state="skating";
-    }
+    skater.x += skater.direction*1.5; skater.y+=skater.vy; skater.vy+=0.5;
+    if(skater.y>=350){ skater.y=350; askQuestion(); index++; state="skating"; }
   }
-
-  if(state==="spin"){
-    finalSpin();
-    setTimeout(endProgram,3000);
-    state="waiting";
-  }
-
-  drawSkater();
-  drawParticles();
-
-  ctx.fillStyle="black";
-  ctx.fillText("Score: "+score,20,20);
-  ctx.fillText("Jump "+(index+1)+" / 10",20,40);
-
+  if(state==="spin"){ finalSpin(); setTimeout(endProgram,3000); state="waiting"; }
+  drawSkater(); drawParticles();
+  ctx.fillStyle="black"; ctx.fillText("Score: "+score,20,20);
+  ctx.fillText("Jump "+(index+1)+" / 10, Missed: "+misses,20,40);
   requestAnimationFrame(update);
 }
 
 /* ---------- START ---------- */
-programMusic.play();
-update();
+document.getElementById("startButton").addEventListener("click", ()=>{
+  document.getElementById("startScreen").style.display="none";
+  canvas.style.display="block";
+  programMusic.play();
+  update();
+});
 </script>
-
 </body>
 </html>
