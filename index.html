@@ -103,7 +103,7 @@ let index = 0;
 let skater = {x:100,y:350,vy:0,frame:0,costume:"#ff3fd8",direction:1,targetX:700,rotation:0};
 let sparkles=[], trails=[], confetti=[];
 let showingQuestion = false;
-let inAir = false; // whether skater is mid-jump
+let inAir = false;
 
 /* ---------- DRAW ---------- */
 function drawArena(){
@@ -124,11 +124,10 @@ function drawArena(){
   }
 }
 
-/* ---------- SKATER ---------- */
 function drawSkater(){
   ctx.save();
   ctx.translate(skater.x,skater.y);
-  ctx.rotate(skater.rotation); 
+  ctx.rotate(skater.rotation);
   let stride = Math.sin(skater.frame/5)*8;
   ctx.strokeStyle="black"; ctx.lineWidth=4;
   ctx.beginPath();
@@ -145,7 +144,6 @@ function drawSkater(){
   ctx.restore();
 }
 
-/* ---------- PARTICLES ---------- */
 function drawParticles(){
   sparkles.forEach(p=>{ctx.fillStyle="white"; ctx.fillRect(p.x,p.y,2,2); p.life--;});
   sparkles=sparkles.filter(p=>p.life>0);
@@ -154,48 +152,43 @@ function drawParticles(){
   confetti.forEach(c=>{ctx.fillStyle=c.color; ctx.fillRect(c.x,c.y,6,6); c.y+=3;});
 }
 
-/* ---------- JUMP ---------- */
 function triggerJump(){
   if(!inAir){
-    skater.vy = -12-Math.random()*3;
+    skater.vy=-12-Math.random()*3;
     skater.targetX = Math.random()*700+100;
     skater.direction = skater.targetX>skater.x?1:-1;
-    inAir = true;
+    inAir=true;
   }
 }
 
-/* ---------- QUESTION BUTTONS ---------- */
 function showQuestion(){
   if(showingQuestion) return;
-  showingQuestion = true;
-  const container = document.getElementById("questionContainer");
-  const qText = document.getElementById("questionText");
-  const answersDiv = document.getElementById("answers");
-  container.style.display = "flex";
+  showingQuestion=true;
+  const container=document.getElementById("questionContainer");
+  const qText=document.getElementById("questionText");
+  const answersDiv=document.getElementById("answers");
+  container.style.display="flex";
 
-  const q = questions[index];
-  qText.innerText = jumps[index] + ": " + q.q;
-  answersDiv.innerHTML = "";
-
-  skater.vy = 0; // freeze mid-air
+  const q=questions[index];
+  qText.innerText=jumps[index]+": "+q.q;
+  answersDiv.innerHTML="";
+  skater.vy=0;
 
   q.options.forEach(opt=>{
-    const btn = document.createElement("button");
-    btn.innerText = opt;
-    btn.onclick = ()=>{
+    const btn=document.createElement("button");
+    btn.innerText=opt;
+    btn.onclick=()=>{
       container.style.display="none";
       showingQuestion=false;
-
       if(opt.toLowerCase()===q.a.toLowerCase()){
         score+=10;
         cheer.play();
-        skater.rotation=0; skater.vy=5; // land upright
+        skater.rotation=0; skater.vy=5;
       } else{
         misses++;
         aww.play();
-        skater.rotation=Math.PI/2; skater.vy=5; // fall sideways
+        skater.rotation=Math.PI/2; skater.vy=5;
       }
-
       index++;
       if(index>=10) setTimeout(endGame,1000);
     };
@@ -203,56 +196,46 @@ function showQuestion(){
   });
 }
 
-/* ---------- END SCREEN ---------- */
 function endGame(){
   canvas.style.display="none";
   document.getElementById("endingScreen").style.display="flex";
   programMusic.pause();
   medalMusic.play();
-
   let medal="Gold";
   if(misses==1) medal="Silver";
   else if(misses==2) medal="Bronze";
   else if(misses>=3) medal="Lost";
-
   document.getElementById("resultText").innerText=medal==="Lost"?"YOU LOST":medal+" Medal 🏅";
   document.getElementById("finalScore").innerText=`Final Score: ${score}/100\nMissed: ${misses}/10`;
 
   mctx.clearRect(0,0,500,500);
-  // podium
   mctx.fillStyle="#888"; mctx.fillRect(150,350,80,50);
   mctx.fillStyle=medal==="Gold"?"#ffd700":medal==="Silver"?"#c0c0c0":"#cd7f32";
   mctx.fillRect(250,300,80,100);
   mctx.fillStyle="#cd7f32"; mctx.fillRect(350,370,80,30);
-  // skater
-  mctx.fillStyle=skater.costume;
-  mctx.fillRect(250+40-12,300-40,24,40);
-  mctx.beginPath();
-  mctx.arc(250+40,300-60,30,0,Math.PI*2);
+  mctx.fillStyle=skater.costume; mctx.fillRect(250+40-12,300-40,24,40);
+  mctx.beginPath(); mctx.arc(250+40,300-60,30,0,Math.PI*2);
   mctx.fillStyle=medal==="Gold"?"#ffd700":medal==="Silver"?"#c0c0c0":"#cd7f32";
   mctx.fill();
   mctx.fillStyle="black"; mctx.font="20px Arial"; mctx.textAlign="center";
   mctx.fillText(medal,250+40,300-55);
 }
 
-/* ---------- GAME LOOP ---------- */
 function update(){
   ctx.clearRect(0,0,900,500);
   drawArena();
 
   if(!showingQuestion){
-    skater.x += 2*skater.direction;
+    skater.x+=2*skater.direction;
     if(skater.x<50) skater.direction=1;
     if(skater.x>850) skater.direction=-1;
   }
 
   if(inAir){
-    skater.y += skater.vy;
-    skater.vy += 0.5;
+    skater.y+=skater.vy;
+    skater.vy+=0.5;
     if(skater.y>=350){
-      skater.y=350;
-      skater.vy=0;
-      inAir=false;
+      skater.y=350; skater.vy=0; inAir=false;
       if(index<10) showQuestion();
     }
   }
@@ -265,12 +248,11 @@ function update(){
   if(index<10) requestAnimationFrame(update);
 }
 
-/* ---------- START ---------- */
 document.getElementById("startButton").addEventListener("click", ()=>{
   document.getElementById("startScreen").style.display="none";
   canvas.style.display="block";
   document.getElementById("questionContainer").style.display="flex";
-  programMusic.play();
+  programMusic.play().catch(()=>{}); // must be triggered by click
   triggerJump();
   update();
 });
